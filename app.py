@@ -530,8 +530,44 @@ def render_dashboard():
             # Analyze regime
             regime = analyze_regime(daily_df, today_data)
             
-            # Analyze intraday
-            intraday_analysis = analyze_intraday(intraday_df)
+            # Calculate previous day's EMA values for continuity
+            previous_ema_fast = None
+            previous_ema_slow = None
+            
+            # Get yesterday's data to calculate last EMA values
+            yesterday_date = today - timedelta(days=1)
+            yesterday_df = intraday_raw[intraday_raw.index.date == yesterday_date].copy()
+            
+            if not yesterday_df.empty:
+                # Filter yesterday's data to regular trading hours
+                if yesterday_df.index.tz is None:
+                    yesterday_df.index = pd.to_datetime(yesterday_df.index).tz_localize('UTC').tz_convert(et_tz)
+                elif yesterday_df.index.tz != et_tz:
+                    yesterday_df.index = yesterday_df.index.tz_convert(et_tz)
+                
+                market_open_time = time(9, 30)
+                market_close_time = time(16, 0)
+                yesterday_df['time_only'] = yesterday_df.index.time
+                yesterday_df = yesterday_df[
+                    (yesterday_df['time_only'] >= market_open_time) & 
+                    (yesterday_df['time_only'] <= market_close_time)
+                ].copy()
+                yesterday_df = yesterday_df.drop(columns=['time_only'], errors='ignore')
+                
+                if not yesterday_df.empty:
+                    yesterday_df_sorted = yesterday_df.sort_index()
+                    # Calculate yesterday's EMAs to get the last values
+                    from logic.intraday import calculate_ema
+                    yesterday_ema_fast = calculate_ema(yesterday_df_sorted, config.EMA_FAST)
+                    yesterday_ema_slow = calculate_ema(yesterday_df_sorted, config.EMA_SLOW)
+                    
+                    if not yesterday_ema_fast.empty:
+                        previous_ema_fast = yesterday_ema_fast.iloc[-1]
+                    if not yesterday_ema_slow.empty:
+                        previous_ema_slow = yesterday_ema_slow.iloc[-1]
+            
+            # Analyze intraday with previous day's EMA values for continuity
+            intraday_analysis = analyze_intraday(intraday_df, previous_ema_fast, previous_ema_slow)
             
             # Generate signal (with time filtering and chop detection)
             current_time = datetime.now(ZoneInfo("America/New_York"))

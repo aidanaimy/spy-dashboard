@@ -4,7 +4,7 @@ Intraday analysis: VWAP, EMAs, returns, volatility, and micro trend.
 
 import pandas as pd
 import numpy as np
-from typing import Dict
+from typing import Dict, Optional
 import config
 
 
@@ -29,19 +29,40 @@ def calculate_vwap(df: pd.DataFrame) -> pd.Series:
     return vwap
 
 
-def calculate_ema(df: pd.DataFrame, period: int, column: str = 'Close') -> pd.Series:
+def calculate_ema(df: pd.DataFrame, period: int, column: str = 'Close', previous_ema: Optional[float] = None) -> pd.Series:
     """
     Calculate Exponential Moving Average (EMA).
+    EMA carries over from previous day - if previous_ema is provided, it's used as the starting point.
     
     Args:
         df: DataFrame with price data
         period: EMA period
         column: Column to calculate EMA on (default: 'Close')
+        previous_ema: Last EMA value from previous day (optional, for continuity)
         
     Returns:
         Series with EMA values
     """
-    return df[column].ewm(span=period, adjust=False).mean()
+    if df.empty:
+        return pd.Series(dtype=float, index=df.index)
+    
+    if previous_ema is not None and len(df) > 0:
+        # Calculate smoothing factor
+        alpha = 2.0 / (period + 1.0)
+        
+        # Start with previous day's EMA
+        ema_values = [previous_ema]
+        
+        # Calculate EMA for each bar
+        for i in range(1, len(df)):
+            current_price = df[column].iloc[i]
+            ema = alpha * current_price + (1 - alpha) * ema_values[-1]
+            ema_values.append(ema)
+        
+        return pd.Series(ema_values, index=df.index)
+    else:
+        # Standard EMA calculation (resets if no previous value)
+        return df[column].ewm(span=period, adjust=False).mean()
 
 
 def calculate_returns(df: pd.DataFrame, periods: int = 1) -> pd.Series:
@@ -104,12 +125,14 @@ def get_micro_trend(price: float, ema_fast: float, ema_slow: float, vwap: float)
         return "Neutral"
 
 
-def analyze_intraday(df: pd.DataFrame) -> Dict:
+def analyze_intraday(df: pd.DataFrame, previous_ema_fast: Optional[float] = None, previous_ema_slow: Optional[float] = None) -> Dict:
     """
     Complete intraday analysis.
     
     Args:
-        df: Intraday OHLCV dataframe
+        df: Intraday OHLCV dataframe (should only contain regular trading hours: 9:30 AM - 4:00 PM ET)
+        previous_ema_fast: Last EMA fast value from previous day (for continuity)
+        previous_ema_slow: Last EMA slow value from previous day (for continuity)
         
     Returns:
         Dictionary with all intraday metrics
@@ -120,9 +143,9 @@ def analyze_intraday(df: pd.DataFrame) -> Dict:
     df_sorted = df.sort_index()
     
     # Calculate indicators
-    vwap = calculate_vwap(df_sorted)
-    ema_fast = calculate_ema(df_sorted, config.EMA_FAST)
-    ema_slow = calculate_ema(df_sorted, config.EMA_SLOW)
+    vwap = calculate_vwap(df_sorted)  # VWAP resets each day
+    ema_fast = calculate_ema(df_sorted, config.EMA_FAST, previous_ema_fast)  # EMA carries over
+    ema_slow = calculate_ema(df_sorted, config.EMA_SLOW, previous_ema_slow)  # EMA carries over
     
     # Get latest values
     latest_idx = df_sorted.index[-1]
