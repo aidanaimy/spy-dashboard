@@ -16,11 +16,7 @@ from streamlit_autorefresh import st_autorefresh
 
 # Try Alpaca first, fallback to yfinance
 try:
-    from data.alpaca_client import get_daily_data, get_intraday_data, api
-    if api is None:
-        raise ImportError("Alpaca API not initialized")
-    # get_today_data is the same in both, import from yfinance
-    from data.yfinance_client import get_today_data
+    from data.alpaca_client import get_daily_data, get_intraday_data, get_today_data, api
 except (ImportError, AttributeError):
     from data.yfinance_client import get_daily_data, get_intraday_data, get_today_data
 from logic.regime import analyze_regime
