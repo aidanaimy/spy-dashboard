@@ -19,6 +19,14 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
     """
     time_str = current_time.strftime('%H:%M')
     
+    # Check if in afternoon drift period (13:00-14:30) - BLOCK entries (worst performing period)
+    if config.AFTERNOON_DRIFT_START <= time_str < config.AFTERNOON_DRIFT_END:
+        return {
+            'allow_trade': False,
+            'confidence_multiplier': 0.0,
+            'reason': 'Afternoon drift period (13:00-14:30) - blocked due to poor historical performance'
+        }
+    
     # Check if in lunch period (12:00-1:00) - reduce confidence instead of blocking
     # Chop detector will catch actual choppy conditions, but we reduce confidence
     # for this known lower-quality period
