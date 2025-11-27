@@ -559,8 +559,9 @@ class BacktestEngine:
                         # At EOD (4:00 PM), T = 0 (expiration)
                         T = 0.0
                         
-                        # Use entry IV (or VIX if available)
-                        sigma = current_position.get('entry_iv', iv_context.get('vix_level', 20.0) / 100.0)
+                        # Use entry IV (or VIX if available, default to 20.0 if None)
+                        vix_level = iv_context.get('vix_level') or 20.0
+                        sigma = current_position.get('entry_iv', vix_level / 100.0)
                         
                         # At expiration, option price = intrinsic value
                         exit_option_price = self._get_option_price(
