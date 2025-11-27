@@ -33,8 +33,8 @@ SESSION_END = "15:30"
 AVOID_TRADE_START = "12:00"  # Start of lunch period (reduced confidence, not blocked)
 AVOID_TRADE_END = "13:00"    # End of lunch period
 POWER_HOUR_START = "14:30"   # Power hour start (increase confidence)
-BLOCK_TRADE_AFTER = "15:00"  # Block all NEW entries after this time (gives trades 30+ min to develop before 15:30 EOD)
-# Note: Existing positions can still exit after 15:00, but no new entries allowed
+BLOCK_TRADE_AFTER = "15:30"  # Block all signals after this time (too close to market close at 16:00)
+# Note: Late-day entries (14:30-15:30) may be profitable during power hour - analyze time-of-day performance
 REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES = 10  # Reduce confidence for first N minutes after open
 
 # Chop detection parameters
