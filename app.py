@@ -711,12 +711,26 @@ def render_dashboard():
         trend_color = "#2bd47d" if micro_trend == "Up" else "#ff5f6d" if micro_trend == "Down" else "#8ea0bc"
         
         stats_html.append("<div class='stats-group' style='border-bottom:none; padding-bottom:0;'><h5>Micro Trend</h5>")
+        
+        # Get EMA values for context
+        ema_fast_val = intraday_analysis.get('ema_fast', 0)
+        ema_slow_val = intraday_analysis.get('ema_slow', 0)
+        price = intraday_analysis.get('price', 0)
+        
+        # Determine EMA relationship
+        if ema_fast_val > ema_slow_val:
+            ema_status = f"EMA {config.EMA_FAST} > EMA {config.EMA_SLOW}"
+        elif ema_fast_val < ema_slow_val:
+            ema_status = f"EMA {config.EMA_FAST} < EMA {config.EMA_SLOW}"
+        else:
+            ema_status = f"EMA {config.EMA_FAST} ≈ EMA {config.EMA_SLOW}"
+        
         stats_html.append(f"""
             <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
                 <div style="font-size:2rem;">{trend_emoji}</div>
                 <div>
                     <div style="font-size:1.5rem; font-weight:800; color:{trend_color};">{micro_trend}</div>
-                    <div style="font-size:0.8rem; color:var(--text-secondary);">EMA {config.EMA_FAST} / {config.EMA_SLOW}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary);">{ema_status}</div>
                 </div>
             </div>
         """)
