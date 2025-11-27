@@ -34,8 +34,8 @@ AVOID_TRADE_START = "12:00"  # Start of lunch period (reduced confidence, not bl
 AVOID_TRADE_END = "13:00"    # End of lunch period
 AFTERNOON_DRIFT_START = "13:00"  # Afternoon drift period start (BLOCKED - worst performing period per backtest)
 AFTERNOON_DRIFT_END = "14:30"    # Afternoon drift period end (before power hour)
-POWER_HOUR_START = "14:30"   # Power hour start (increase confidence - BEST performing period per backtest)
-BLOCK_TRADE_AFTER = "15:30"  # Block all signals after this time (too close to market close at 16:00)
+POWER_HOUR_START = "14:30"   # Power hour start (historically strong moves, but theta risk for 0DTE)
+BLOCK_TRADE_AFTER = "14:30"  # Block all signals after this time (0DTE theta decay accelerates after 2:30 PM)
 REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES = 10  # Reduce confidence for first N minutes after open
 
 # Chop detection parameters
