@@ -1147,6 +1147,38 @@ def render_backtest():
         st.markdown(metrics_html, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         
+        # Time-of-day performance analysis
+        if 'time_analysis' in results and results['time_analysis']:
+            st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
+            st.subheader("⏰ Performance by Time of Day")
+            
+            time_data = results['time_analysis']
+            time_rows = []
+            for period, stats in time_data.items():
+                time_rows.append({
+                    'Period': period,
+                    'Trades': stats['trades'],
+                    'Win Rate': f"{stats['win_rate']*100:.1f}%",
+                    'Avg R': f"{stats['avg_r_multiple']:.2f}",
+                    'P/L': f"${stats['total_pnl']:.2f}"
+                })
+            
+            if time_rows:
+                time_df = pd.DataFrame(time_rows)
+                st.dataframe(time_df, use_container_width=True, hide_index=True)
+                
+                # Highlight best/worst periods
+                best_period = max(time_data.items(), key=lambda x: x[1]['total_pnl'])
+                worst_period = min(time_data.items(), key=lambda x: x[1]['total_pnl'])
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.success(f"✅ **Best Period**: {best_period[0]} - ${best_period[1]['total_pnl']:.2f} P/L ({best_period[1]['trades']} trades)")
+                with col2:
+                    st.error(f"❌ **Worst Period**: {worst_period[0]} - ${worst_period[1]['total_pnl']:.2f} P/L ({worst_period[1]['trades']} trades)")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        
         if not results['equity_curve'].empty:
             st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
             st.subheader("Equity Curve")
