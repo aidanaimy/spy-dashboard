@@ -16,7 +16,7 @@ from streamlit_autorefresh import st_autorefresh
 
 # Try Alpaca first, fallback to yfinance
 try:
-    from data.alpaca_client import get_daily_data, get_intraday_data, get_today_data, api
+    from data.alpaca_client import get_daily_data, get_intraday_data, get_today_data
 except (ImportError, AttributeError):
     from data.yfinance_client import get_daily_data, get_intraday_data, get_today_data
 from logic.regime import analyze_regime
@@ -416,7 +416,8 @@ def render_dashboard():
         with st.spinner("Loading market data..."):
             # Debug: show which data source is being used
             try:
-                from data.alpaca_client import api as alpaca_api
+                from data.alpaca_client import get_alpaca_api
+                alpaca_api = get_alpaca_api()
                 data_source = "Alpaca" if alpaca_api is not None else "yfinance (fallback)"
             except:
                 data_source = "yfinance"

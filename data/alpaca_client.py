@@ -10,58 +10,66 @@ import os
 from dotenv import load_dotenv
 import config
 
-# Try to import and initialize Alpaca API
+# Try to import Alpaca package
 try:
     import alpaca_trade_api as tradeapi
-    
-    # Load environment variables
+    ALPACA_AVAILABLE = True
+except ImportError:
+    ALPACA_AVAILABLE = False
+    tradeapi = None
+
+# Global API client (initialized lazily)
+api = None
+
+def get_alpaca_credentials():
+    """Get Alpaca credentials from Streamlit secrets or environment."""
     load_dotenv()
     
-    # Try Streamlit secrets first (for Streamlit Cloud), then fall back to environment
-    ALPACA_KEY = None
-    ALPACA_SECRET = None
-    ALPACA_BASE_URL = None
-    
-    # Check if we're in a Streamlit context
+    # Try Streamlit secrets first (for Streamlit Cloud)
     try:
         import streamlit as st
         if hasattr(st, 'secrets'):
-            ALPACA_KEY = st.secrets.get('ALPACA_KEY')
-            ALPACA_SECRET = st.secrets.get('ALPACA_SECRET')
-            ALPACA_BASE_URL = st.secrets.get('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
+            key = st.secrets.get('ALPACA_KEY')
+            secret = st.secrets.get('ALPACA_SECRET')
+            base_url = st.secrets.get('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
+            if key and secret:
+                return key, secret, base_url
     except (ImportError, AttributeError, RuntimeError):
         pass
     
-    # Fall back to environment variables if secrets weren't found
-    if not ALPACA_KEY:
-        ALPACA_KEY = os.getenv('ALPACA_KEY')
-    if not ALPACA_SECRET:
-        ALPACA_SECRET = os.getenv('ALPACA_SECRET')
-    if not ALPACA_BASE_URL:
-        ALPACA_BASE_URL = os.getenv('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
-
-    if not ALPACA_KEY or not ALPACA_SECRET:
-        raise RuntimeError("Missing Alpaca API credentials. Set ALPACA_KEY and ALPACA_SECRET in environment/secrets.")
+    # Fall back to environment variables
+    key = os.getenv('ALPACA_KEY')
+    secret = os.getenv('ALPACA_SECRET')
+    base_url = os.getenv('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
     
-    # Initialize Alpaca API client
+    return key, secret, base_url
+
+def get_alpaca_api():
+    """Get or initialize Alpaca API client."""
+    global api
+    
+    if not ALPACA_AVAILABLE:
+        return None
+    
+    if api is not None:
+        return api
+    
     try:
-        # Alpaca REST client: key, secret, base_url, api_version
-        # For data API, base_url should be the data endpoint
+        key, secret, base_url = get_alpaca_credentials()
+        if not key or not secret:
+            print("Warning: Alpaca credentials not found in secrets or environment")
+            return None
+        
         api = tradeapi.REST(
-            ALPACA_KEY,
-            ALPACA_SECRET,
-            base_url=ALPACA_BASE_URL,
+            key,
+            secret,
+            base_url=base_url,
             api_version='v2'
         )
+        return api
     except Exception as e:
         print(f"Warning: Could not initialize Alpaca API: {str(e)}")
-        api = None
-except ImportError:
-    # Alpaca package not installed
-    api = None
-    ALPACA_KEY = None
-    ALPACA_SECRET = None
-    ALPACA_BASE_URL = None
+        return None
 
 
 def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBACK_DAYS) -> pd.DataFrame:
@@ -75,7 +83,8 @@ def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBAC
     Returns:
         DataFrame with columns: Open, High, Low, Close, Volume
     """
-    if api is None:
+    api_client = get_alpaca_api()
+    if api_client is None:
         raise Exception("Alpaca API not initialized")
     
     try:
@@ -88,7 +97,7 @@ def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBAC
         start_str = start_date.strftime('%Y-%m-%d')
         end_str = end_date.strftime('%Y-%m-%d')
         
-        bar_set = api.get_bars(
+        bar_set = api_client.get_bars(
             symbol,
             '1Day',
             start=start_str,
@@ -146,7 +155,8 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
     Returns:
         DataFrame with columns: Open, High, Low, Close, Volume
     """
-    if api is None:
+    api_client = get_alpaca_api()
+    if api_client is None:
         raise Exception("Alpaca API not initialized")
     
     try:
@@ -183,7 +193,7 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
         start_str = fetch_start_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
         end_str = fetch_end_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        bar_set = api.get_bars(
+        bar_set = api_client.get_bars(
             symbol,
             alpaca_interval,
             start=start_str,
@@ -229,17 +239,18 @@ def get_latest_price(symbol: str = config.SYMBOL) -> float:
     Returns:
         Latest price (float)
     """
-    if api is None:
+    api_client = get_alpaca_api()
+    if api_client is None:
         raise Exception("Alpaca API not initialized")
     
     try:
         # Try to get latest trade
-        trade = api.get_latest_trade(symbol)
+        trade = api_client.get_latest_trade(symbol)
         if trade:
             return float(trade.p)
         
         # Fallback to latest quote
-        quote = api.get_latest_quote(symbol)
+        quote = api_client.get_latest_quote(symbol)
         if quote:
             # Use mid price
             bid = float(quote.bp) if quote.bp else 0
@@ -252,7 +263,7 @@ def get_latest_price(symbol: str = config.SYMBOL) -> float:
                 return ask
         
         # Last resort: get latest bar
-        bars = api.get_bars(symbol, '1Min', limit=1)
+        bars = api_client.get_bars(symbol, '1Min', limit=1)
         if bars and hasattr(bars, 'df') and not bars.df.empty:
             return float(bars.df.iloc[-1]['close'])
         elif bars and len(bars) > 0:

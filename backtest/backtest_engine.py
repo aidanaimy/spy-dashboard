@@ -14,8 +14,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Try Alpaca first, fallback to yfinance
 try:
-    from data.alpaca_client import get_daily_data, get_intraday_data, api
-    if api is None:
+    from data.alpaca_client import get_daily_data, get_intraday_data, get_alpaca_api
+    if get_alpaca_api() is None:
         raise ImportError("Alpaca API not initialized")
 except (ImportError, AttributeError):
     from data.yfinance_client import get_daily_data, get_intraday_data
