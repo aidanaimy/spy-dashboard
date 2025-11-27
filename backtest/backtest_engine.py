@@ -584,6 +584,23 @@ class BacktestEngine:
                           f"Skipped after close={bars_skipped_after_close}, "
                           f"Last processed={last_processed_time}")
                 
+                # DATA INTEGRITY CHECK: Warn if data is truncated (ends significantly before 16:00)
+                if last_processed_time is not None:
+                    # Get time component
+                    if hasattr(last_processed_time, 'time'):
+                        last_time = last_processed_time.time()
+                    else:
+                        last_time = pd.to_datetime(last_processed_time).time()
+                    
+                    # Check if before 15:30 (30 mins before close)
+                    # 15:30 is SESSION_END, but data should exist until 16:00
+                    if last_time < datetime.strptime("15:30", "%H:%M").time():
+                        print(f"\n[WARNING] Data Truncation Detected for {day.date()}!")
+                        print(f"  Last bar time: {last_time}")
+                        print(f"  Expected data until: 16:00")
+                        print(f"  Result: Positions forced closed at {last_time} (Reason: EOD)")
+                        print(f"  Action: Check your data source (yfinance/Alpaca) for missing data.\n")
+                
                 # Close any remaining position at end of day
                 if current_position is not None:
                     # Use last processed bar time, or fallback to last bar in dataframe
