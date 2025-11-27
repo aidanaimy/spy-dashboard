@@ -361,6 +361,13 @@ class BacktestEngine:
                                 pnl = self._calculate_options_pnl(entry_option_price, current_option_price)
                                 equity += pnl
                                 
+                                # Debug: Print exit details for verification
+                                if exit_reason == 'SL':
+                                    print(f"DEBUG SL Exit: Time={idx}, Underlying={current_price:.2f}, "
+                                          f"Entry_Underlying={entry_underlying_price:.2f}, "
+                                          f"Option_Entry={entry_option_price:.4f}, Option_Exit={current_option_price:.4f}, "
+                                          f"Strike={strike}, T={T:.6f}, IV={sigma:.4f}")
+                                
                                 trades.append({
                                     'entry_time': current_position['entry_time'],
                                     'exit_time': idx,
