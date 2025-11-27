@@ -45,9 +45,15 @@ CHOP_ATR_THRESHOLD = 0.002  # ATR(5m) below this = chop (0.2%)
 CHOP_VWAP_RANGE_THRESHOLD = 0.002  # Range inside VWAP ±0.2% = chop
 
 # Backtest parameters
-BACKTEST_TP_PCT = 0.007   # Take profit: 0.7%
-BACKTEST_SL_PCT = 0.003   # Stop loss: 0.3%
+BACKTEST_TP_PCT = 0.007   # Take profit: 0.7% (for shares)
+BACKTEST_SL_PCT = 0.003   # Stop loss: 0.3% (for shares)
 BACKTEST_POSITION_SIZE = 1.0  # Fixed position size (units)
+
+# Options backtest parameters
+BACKTEST_OPTIONS_TP_PCT = 0.50  # Take profit: 50% of premium paid (for options)
+BACKTEST_OPTIONS_SL_PCT = 0.50  # Stop loss: 50% of premium paid (for options)
+BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts (each = 100 shares)
+BACKTEST_RISK_FREE_RATE = 0.05  # Risk-free rate (5% annual, for Black-Scholes)
 
 # Journal settings
 JOURNAL_FILE = "data/trade_journal.csv"

@@ -1071,6 +1071,13 @@ def render_backtest():
     
     st.info("Run a backtest using the same signal logic as the dashboard.")
     
+    # Options mode toggle
+    use_options = st.checkbox(
+        "📊 Use Options Pricing (Black-Scholes)",
+        value=False,
+        help="If enabled, backtest uses options pricing with Greeks (Delta, Theta, Vega) instead of shares. Uses VIX as IV proxy."
+    )
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -1095,13 +1102,15 @@ def render_backtest():
                 engine = BacktestEngine()
                 results = engine.run_backtest(
                     datetime.combine(start_date, datetime.min.time()),
-                    datetime.combine(end_date, datetime.max.time())
+                    datetime.combine(end_date, datetime.max.time()),
+                    use_options=use_options
                 )
                 
                 # Store results in session state to persist across reruns
                 st.session_state.backtest_results = results
                 st.session_state.backtest_start_date = start_date
                 st.session_state.backtest_end_date = end_date
+                st.session_state.backtest_use_options = use_options
                 st.rerun()
             
             except Exception as e:
@@ -1111,9 +1120,11 @@ def render_backtest():
     # Display results if they exist in session state
     if 'backtest_results' in st.session_state:
         results = st.session_state.backtest_results
+        use_options_mode = st.session_state.get('backtest_use_options', False)
         
-        # Show date range
-        st.info(f"📅 Backtest Period: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date}")
+        # Show date range and mode
+        mode_text = "Options Mode (Black-Scholes)" if use_options_mode else "Shares Mode"
+        st.info(f"📅 Backtest Period: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date} | Mode: {mode_text}")
         
         # Display results
         st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)

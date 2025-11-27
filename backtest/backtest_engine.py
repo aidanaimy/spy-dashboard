@@ -22,7 +22,11 @@ except (ImportError, AttributeError):
 from logic.regime import analyze_regime
 from logic.intraday import analyze_intraday
 from logic.signals import generate_signal
-from logic.iv import fetch_historical_vix_context
+from logic.iv import fetch_historical_vix_context, fetch_iv_context
+from logic.options import (
+    black_scholes_price, calculate_delta, calculate_all_greeks,
+    get_atm_strike, time_to_expiration_0dte, calculate_option_pnl
+)
 import config
 
 
@@ -31,22 +35,50 @@ class BacktestEngine:
     
     def __init__(self, tp_pct: float = config.BACKTEST_TP_PCT,
                  sl_pct: float = config.BACKTEST_SL_PCT,
-                 position_size: float = config.BACKTEST_POSITION_SIZE):
+                 position_size: float = config.BACKTEST_POSITION_SIZE,
+                 use_options: bool = False):
         self.tp_pct = tp_pct
         self.sl_pct = sl_pct
         self.position_size = position_size
+        self.use_options = use_options
         
-    def run_backtest(self, start_date: datetime, end_date: datetime) -> Dict:
+        # Options-specific parameters
+        if use_options:
+            self.options_tp_pct = config.BACKTEST_OPTIONS_TP_PCT
+            self.options_sl_pct = config.BACKTEST_OPTIONS_SL_PCT
+            self.options_contracts = config.BACKTEST_OPTIONS_CONTRACTS
+            self.risk_free_rate = config.BACKTEST_RISK_FREE_RATE
+    
+    def _get_option_price(self, S: float, K: float, T: float, sigma: float, option_type: str) -> float:
+        """Calculate option price using Black-Scholes."""
+        return black_scholes_price(S, K, T, self.risk_free_rate, sigma, option_type)
+    
+    def _get_option_greeks(self, S: float, K: float, T: float, sigma: float, option_type: str) -> Dict:
+        """Calculate option Greeks."""
+        return calculate_all_greeks(S, K, T, self.risk_free_rate, sigma, option_type)
+    
+    def _calculate_options_pnl(self, entry_option_price: float, exit_option_price: float) -> float:
+        """Calculate P/L for options trade."""
+        return calculate_option_pnl(entry_option_price, exit_option_price, self.options_contracts)
+        
+    def run_backtest(self, start_date: datetime, end_date: datetime, use_options: bool = False) -> Dict:
         """
         Run backtest over date range.
         
         Args:
             start_date: Start date
             end_date: End date
+            use_options: If True, use options pricing (Black-Scholes) instead of shares
             
         Returns:
             Dictionary with backtest results
         """
+        self.use_options = use_options
+        if use_options:
+            self.options_tp_pct = config.BACKTEST_OPTIONS_TP_PCT
+            self.options_sl_pct = config.BACKTEST_OPTIONS_SL_PCT
+            self.options_contracts = config.BACKTEST_OPTIONS_CONTRACTS
+            self.risk_free_rate = config.BACKTEST_RISK_FREE_RATE
         # Get daily data for regime analysis - fetch enough to cover the backtest period
         # Calculate days needed: backtest period + buffer for weekends/holidays + MA periods
         backtest_days = (end_date - start_date).days
@@ -153,38 +185,89 @@ class BacktestEngine:
                     if time_str >= config.BLOCK_TRADE_AFTER:
                         # Still process exits, but no new entries
                         if current_position is not None:
-                            # Check exit conditions
                             entry_price = current_position['entry_price']
-                            if current_position['direction'] == 'LONG':
-                                pnl_pct = (current_price - entry_price) / entry_price
-                            else:
-                                pnl_pct = (entry_price - current_price) / entry_price
+                            entry_underlying_price = current_position.get('entry_underlying_price', entry_price)
                             
-                            exit_reason = None
-                            if pnl_pct >= self.tp_pct:
-                                exit_reason = 'TP'
-                            elif pnl_pct <= -self.sl_pct:
-                                exit_reason = 'SL'
-                            elif time_str >= config.SESSION_END:
-                                exit_reason = 'EOD'
-                            
-                            if exit_reason:
-                                if current_position['direction'] == 'LONG':
-                                    pnl = (current_price - entry_price) * self.position_size
-                                else:
-                                    pnl = (entry_price - current_price) * self.position_size
+                            if self.use_options:
+                                # Options mode
+                                strike = current_position.get('strike', get_atm_strike(current_price))
+                                option_type = 'call' if current_position['direction'] == 'LONG' else 'put'
                                 
-                                equity += pnl
-                                trades.append({
-                                    'entry_time': current_position['entry_time'],
-                                    'exit_time': idx,
-                                    'direction': current_position['direction'],
-                                    'entry_price': entry_price,
-                                    'exit_price': current_price,
-                                    'pnl': pnl,
-                                    'exit_reason': exit_reason
-                                })
-                                current_position = None
+                                # Get time to expiration
+                                if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                    hours = idx.hour
+                                    minutes = idx.minute
+                                else:
+                                    idx_dt = pd.to_datetime(idx)
+                                    hours = idx_dt.hour
+                                    minutes = idx_dt.minute
+                                
+                                T = time_to_expiration_0dte(hours, minutes)
+                                sigma = current_position.get('entry_iv', iv_context.get('vix_level', 20.0) / 100.0)
+                                
+                                current_option_price = self._get_option_price(
+                                    current_price, strike, T, sigma, option_type
+                                )
+                                
+                                entry_option_price = current_position.get('entry_option_price', entry_price)
+                                pnl_pct = (current_option_price - entry_option_price) / entry_option_price if entry_option_price > 0 else 0
+                                
+                                exit_reason = None
+                                if pnl_pct >= self.options_tp_pct:
+                                    exit_reason = 'TP'
+                                elif pnl_pct <= -self.options_sl_pct:
+                                    exit_reason = 'SL'
+                                elif time_str >= config.SESSION_END:
+                                    exit_reason = 'EOD'
+                                
+                                if exit_reason:
+                                    pnl = self._calculate_options_pnl(entry_option_price, current_option_price)
+                                    equity += pnl
+                                    trades.append({
+                                        'entry_time': current_position['entry_time'],
+                                        'exit_time': idx,
+                                        'direction': current_position['direction'],
+                                        'entry_price': entry_option_price,
+                                        'exit_price': current_option_price,
+                                        'entry_underlying': entry_underlying_price,
+                                        'exit_underlying': current_price,
+                                        'pnl': pnl,
+                                        'exit_reason': exit_reason,
+                                        'strike': strike
+                                    })
+                                    current_position = None
+                            else:
+                                # Shares mode
+                                if current_position['direction'] == 'LONG':
+                                    pnl_pct = (current_price - entry_price) / entry_price
+                                else:
+                                    pnl_pct = (entry_price - current_price) / entry_price
+                                
+                                exit_reason = None
+                                if pnl_pct >= self.tp_pct:
+                                    exit_reason = 'TP'
+                                elif pnl_pct <= -self.sl_pct:
+                                    exit_reason = 'SL'
+                                elif time_str >= config.SESSION_END:
+                                    exit_reason = 'EOD'
+                                
+                                if exit_reason:
+                                    if current_position['direction'] == 'LONG':
+                                        pnl = (current_price - entry_price) * self.position_size
+                                    else:
+                                        pnl = (entry_price - current_price) * self.position_size
+                                    
+                                    equity += pnl
+                                    trades.append({
+                                        'entry_time': current_position['entry_time'],
+                                        'exit_time': idx,
+                                        'direction': current_position['direction'],
+                                        'entry_price': entry_price,
+                                        'exit_price': current_price,
+                                        'pnl': pnl,
+                                        'exit_reason': exit_reason
+                                    })
+                                    current_position = None
                         
                         # Skip signal generation and entry after block time
                         equity_curve.append({
@@ -270,19 +353,88 @@ class BacktestEngine:
                     
                     # Check for entry if no position
                     if current_position is None:
-                        # Enter on signal flip
-                        if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
-                            current_position = {
-                                'direction': 'LONG',
-                                'entry_price': current_price,
-                                'entry_time': idx
-                            }
-                        elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
-                            current_position = {
-                                'direction': 'SHORT',
-                                'entry_price': current_price,
-                                'entry_time': idx
-                            }
+                        if self.use_options:
+                            # Options mode: Calculate option price at entry
+                            if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                strike = get_atm_strike(current_price)
+                                option_type = 'call'
+                                
+                                # Get time to expiration
+                                if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                    hours = idx.hour
+                                    minutes = idx.minute
+                                else:
+                                    idx_dt = pd.to_datetime(idx)
+                                    hours = idx_dt.hour
+                                    minutes = idx_dt.minute
+                                
+                                T = time_to_expiration_0dte(hours, minutes)
+                                
+                                # Use VIX as proxy for IV
+                                vix_level = iv_context.get('vix_level', 20.0)
+                                sigma = vix_level / 100.0
+                                
+                                # Calculate entry option price
+                                entry_option_price = self._get_option_price(
+                                    current_price, strike, T, sigma, option_type
+                                )
+                                
+                                current_position = {
+                                    'direction': 'LONG',
+                                    'entry_price': entry_option_price,
+                                    'entry_underlying_price': current_price,
+                                    'entry_option_price': entry_option_price,
+                                    'entry_time': idx,
+                                    'strike': strike,
+                                    'entry_iv': sigma
+                                }
+                            elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                strike = get_atm_strike(current_price)
+                                option_type = 'put'
+                                
+                                # Get time to expiration
+                                if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                    hours = idx.hour
+                                    minutes = idx.minute
+                                else:
+                                    idx_dt = pd.to_datetime(idx)
+                                    hours = idx_dt.hour
+                                    minutes = idx_dt.minute
+                                
+                                T = time_to_expiration_0dte(hours, minutes)
+                                
+                                # Use VIX as proxy for IV
+                                vix_level = iv_context.get('vix_level', 20.0)
+                                sigma = vix_level / 100.0
+                                
+                                # Calculate entry option price
+                                entry_option_price = self._get_option_price(
+                                    current_price, strike, T, sigma, option_type
+                                )
+                                
+                                current_position = {
+                                    'direction': 'SHORT',
+                                    'entry_price': entry_option_price,
+                                    'entry_underlying_price': current_price,
+                                    'entry_option_price': entry_option_price,
+                                    'entry_time': idx,
+                                    'strike': strike,
+                                    'entry_iv': sigma
+                                }
+                        else:
+                            # Shares mode: Original logic
+                            if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                current_position = {
+                                    'direction': 'LONG',
+                                    'entry_price': current_price,
+                                    'entry_time': idx
+                                }
+                            elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                current_position = {
+                                    'direction': 'SHORT',
+                                    'entry_price': current_price,
+                                    'entry_time': idx
+                                }
                     
                     # Record equity
                     equity_curve.append({
@@ -292,25 +444,60 @@ class BacktestEngine:
                 
                 # Close any remaining position at end of day
                 if current_position is not None:
-                    exit_price = intraday_df_sorted.iloc[-1]['Close']
+                    exit_underlying_price = intraday_df_sorted.iloc[-1]['Close']
                     entry_price = current_position['entry_price']
                     
-                    if current_position['direction'] == 'LONG':
-                        pnl = (exit_price - entry_price) * self.position_size
+                    if self.use_options:
+                        # Options mode: Calculate final option price at EOD
+                        strike = current_position.get('strike', get_atm_strike(exit_underlying_price))
+                        option_type = 'call' if current_position['direction'] == 'LONG' else 'put'
+                        
+                        # At EOD (4:00 PM), T = 0 (expiration)
+                        T = 0.0
+                        
+                        # Use entry IV (or VIX if available)
+                        sigma = current_position.get('entry_iv', iv_context.get('vix_level', 20.0) / 100.0)
+                        
+                        # At expiration, option price = intrinsic value
+                        exit_option_price = self._get_option_price(
+                            exit_underlying_price, strike, T, sigma, option_type
+                        )
+                        
+                        entry_option_price = current_position.get('entry_option_price', entry_price)
+                        pnl = self._calculate_options_pnl(entry_option_price, exit_option_price)
+                        
+                        equity += pnl
+                        
+                        trades.append({
+                            'entry_time': current_position['entry_time'],
+                            'exit_time': intraday_df_sorted.index[-1],
+                            'direction': current_position['direction'],
+                            'entry_price': entry_option_price,
+                            'exit_price': exit_option_price,
+                            'entry_underlying': current_position.get('entry_underlying_price', entry_price),
+                            'exit_underlying': exit_underlying_price,
+                            'pnl': pnl,
+                            'exit_reason': 'EOD',
+                            'strike': strike
+                        })
                     else:
-                        pnl = (entry_price - exit_price) * self.position_size
-                    
-                    equity += pnl
-                    
-                    trades.append({
-                        'entry_time': current_position['entry_time'],
-                        'exit_time': intraday_df_sorted.index[-1],
-                        'direction': current_position['direction'],
-                        'entry_price': entry_price,
-                        'exit_price': exit_price,
-                        'pnl': pnl,
-                        'exit_reason': 'EOD'
-                    })
+                        # Shares mode
+                        if current_position['direction'] == 'LONG':
+                            pnl = (exit_underlying_price - entry_price) * self.position_size
+                        else:
+                            pnl = (entry_price - exit_underlying_price) * self.position_size
+                        
+                        equity += pnl
+                        
+                        trades.append({
+                            'entry_time': current_position['entry_time'],
+                            'exit_time': intraday_df_sorted.index[-1],
+                            'direction': current_position['direction'],
+                            'entry_price': entry_price,
+                            'exit_price': exit_underlying_price,
+                            'pnl': pnl,
+                            'exit_reason': 'EOD'
+                        })
                     
                     current_position = None
                     
