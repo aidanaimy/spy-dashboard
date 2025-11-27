@@ -2,11 +2,14 @@
 Main Streamlit app for SPY small-DTE trading dashboard.
 """
 
-import streamlit as st
+import os
+
 import pandas as pd
-from datetime import datetime, timedelta
 import plotly.graph_objects as go
+import requests
+import streamlit as st
 import textwrap
+from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
 # Try Alpaca first, fallback to yfinance
@@ -251,6 +254,60 @@ def confidence_class(level: str) -> str:
     return mapping.get(level, "background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.1);")
 
 
+def get_discord_webhook_url() -> str:
+    """Return Discord webhook URL from secrets or environment."""
+    if "DISCORD_WEBHOOK_URL" in st.secrets:
+        return st.secrets["DISCORD_WEBHOOK_URL"]
+    return os.getenv("DISCORD_WEBHOOK_URL", "")
+
+
+def send_discord_notification(message: str) -> None:
+    """Post a message to Discord if webhook is configured."""
+    url = get_discord_webhook_url()
+    if not url:
+        return
+    try:
+        requests.post(url, json={"content": message}, timeout=5)
+    except Exception as exc:
+        print(f"Discord notification failed: {exc}")
+
+
+def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict, iv_context: Dict, current_time: datetime) -> None:
+    """Send Discord alert when signal direction/confidence changes."""
+    direction = signal.get("direction", "NONE")
+    confidence = signal.get("confidence", "LOW")
+    snapshot = f"{direction}:{confidence}"
+
+    last_snapshot = st.session_state.get("last_signal_snapshot")
+    if snapshot == last_snapshot:
+        return
+
+    st.session_state["last_signal_snapshot"] = snapshot
+
+    timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S ET")
+    reason = signal.get("reason", "")
+    price = intraday.get("price")
+    micro_trend = intraday.get("micro_trend")
+    iv_summary = iv_context.get("atm_iv")
+    permission = regime.get("0dte_status")
+
+    price_str = f"${price:.2f}" if price is not None else "n/a"
+    iv_str = f"{iv_summary:.2f}%" if iv_summary is not None else "n/a"
+
+    message = (
+        f"📈 **Signal Update**\n"
+        f"- Direction: **{direction}**\n"
+        f"- Confidence: **{confidence}**\n"
+        f"- 0DTE Permission: {permission}\n"
+        f"- Price: {price_str} | Micro trend: {micro_trend}\n"
+        f"- ATM IV: {iv_str}\n"
+        f"- Reason: {reason}\n"
+        f"- Time: {timestamp}"
+    )
+
+    send_discord_notification(message)
+
+
 def main():
     st.title("📈 SPY Small-DTE Trading Dashboard")
     
@@ -363,6 +420,8 @@ def render_dashboard():
                 intraday_df=intraday_df,
                 iv_context=iv_context
             )
+
+            maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time)
             
             # Fetch IV context
             try:
