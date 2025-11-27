@@ -53,13 +53,13 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
         market_close = None
     
     # Create subplots: price chart on top, volume on bottom
+    # Don't share x-axes to prevent trace duplication between subplots
     fig = make_subplots(
         rows=2, cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.03,
+        shared_xaxes=False,  # Changed to False to prevent duplication
+        vertical_spacing=0.05,
         row_heights=[0.7, 0.3],
-        subplot_titles=('Price', 'Volume'),
-        specs=[[{"secondary_y": False}], [{"secondary_y": False}]]
+        subplot_titles=('Price', 'Volume')
     )
     
     # Candlestick
@@ -260,17 +260,21 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     fig.update_xaxes(**xaxis_config, row=1, col=1)
     fig.update_xaxes(**xaxis_config, row=2, col=1)
     
-    # Update y-axes with explicit domains to prevent duplication
+    # Update y-axes - ensure they're completely separate
+    # Set explicit y-axis references to prevent trace duplication
     fig.update_yaxes(
         title_text='Price ($)', 
         row=1, col=1,
-        domain=[0.3, 1.0]  # Top 70% of chart
+        side='left',
+        showgrid=True
     )
     fig.update_yaxes(
         title_text='Volume', 
         row=2, col=1,
-        domain=[0.0, 0.27]  # Bottom 27% of chart
+        side='left',
+        showgrid=True
     )
+    
     
     return fig
 
