@@ -158,7 +158,7 @@ st.markdown(
         }
 
         .info-card h4 {
-            margin: 0 0 1rem 0;
+            margin: 0 0 1.5rem 0;
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.1em;
