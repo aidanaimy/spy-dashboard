@@ -224,6 +224,8 @@ if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = config.AUTO_REFRESH_ENABLED
+if 'last_refresh_counter' not in st.session_state:
+    st.session_state.last_refresh_counter = -1
 
 
 def get_status_color(status: str) -> str:
@@ -366,6 +368,7 @@ def main():
         last_counter = st.session_state.get("last_refresh_counter", -1)
         if refresh_counter > last_counter:
             get_cached_intraday_data.clear()
+            get_cached_daily_data.clear()
             st.session_state.last_refresh_counter = refresh_counter
     
     st.markdown("---")
