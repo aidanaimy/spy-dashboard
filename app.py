@@ -395,9 +395,11 @@ def get_cached_daily_data(symbol: str, days: int):
     return get_daily_data(symbol, days)
 
 @st.cache_data(ttl=30)  # Cache intraday data for 30 seconds
-def get_cached_intraday_data(symbol: str, interval: str, days: int):
+def get_cached_intraday_data(symbol: str, interval: str, days: int = None, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
     """Cached intraday data fetch."""
-    return get_intraday_data(symbol, interval, days=days)
+    if start_date is not None and end_date is not None:
+        return get_intraday_data(symbol, interval, start_date=start_date, end_date=end_date)
+    return get_intraday_data(symbol, interval, days=days if days is not None else 1)
 
 
 @st.cache_data(ttl=3600)
@@ -412,17 +414,39 @@ def render_dashboard():
     # Load data with caching
     try:
         with st.spinner("Loading market data..."):
+            # Debug: show which data source is being used
+            try:
+                from data.alpaca_client import api as alpaca_api
+                data_source = "Alpaca" if alpaca_api is not None else "yfinance (fallback)"
+            except:
+                data_source = "yfinance"
+            st.caption(f"Data source: {data_source}")
+            
             # Use cached functions
             daily_df = get_cached_daily_data(config.SYMBOL, config.DAILY_LOOKBACK_DAYS)
-            intraday_df = get_cached_intraday_data(config.SYMBOL, config.INTRADAY_INTERVAL, 1)
+            
+            # Explicitly request today's data with proper timezone
+            et_tz = ZoneInfo("America/New_York")
+            now_et = datetime.now(et_tz)
+            today_start = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+            # Request from market open today to now (use cached function)
+            intraday_df = get_cached_intraday_data(
+                config.SYMBOL, 
+                config.INTRADAY_INTERVAL,
+                start_date=today_start,
+                end_date=now_et
+            )
             
             # Update last refresh time
             st.session_state.last_update = datetime.now()
             
-            # Debug: show latest bar timestamp
+            # Debug: show latest bar timestamp and date
             if not intraday_df.empty:
                 latest_bar_time = intraday_df.index[-1]
-                st.caption(f"Latest bar: {latest_bar_time.strftime('%H:%M:%S ET')} | Current: {datetime.now(ZoneInfo('America/New_York')).strftime('%H:%M:%S ET')}")
+                latest_bar_date = latest_bar_time.date()
+                today = datetime.now(ZoneInfo('America/New_York')).date()
+                current_time = datetime.now(ZoneInfo('America/New_York'))
+                st.caption(f"Latest bar: {latest_bar_time.strftime('%Y-%m-%d %H:%M:%S ET')} | Today: {today} | Current: {current_time.strftime('%H:%M:%S ET')}")
             
             # Filter to today only
             intraday_raw = intraday_df.copy()

@@ -17,10 +17,28 @@ try:
     # Load environment variables
     load_dotenv()
     
-    # Alpaca API credentials (must be provided via environment / secrets)
-    ALPACA_KEY = os.getenv('ALPACA_KEY')
-    ALPACA_SECRET = os.getenv('ALPACA_SECRET')
-    ALPACA_BASE_URL = os.getenv('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
+    # Try Streamlit secrets first (for Streamlit Cloud), then fall back to environment
+    ALPACA_KEY = None
+    ALPACA_SECRET = None
+    ALPACA_BASE_URL = None
+    
+    # Check if we're in a Streamlit context
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets'):
+            ALPACA_KEY = st.secrets.get('ALPACA_KEY')
+            ALPACA_SECRET = st.secrets.get('ALPACA_SECRET')
+            ALPACA_BASE_URL = st.secrets.get('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
+    except (ImportError, AttributeError, RuntimeError):
+        pass
+    
+    # Fall back to environment variables if secrets weren't found
+    if not ALPACA_KEY:
+        ALPACA_KEY = os.getenv('ALPACA_KEY')
+    if not ALPACA_SECRET:
+        ALPACA_SECRET = os.getenv('ALPACA_SECRET')
+    if not ALPACA_BASE_URL:
+        ALPACA_BASE_URL = os.getenv('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
 
     if not ALPACA_KEY or not ALPACA_SECRET:
         raise RuntimeError("Missing Alpaca API credentials. Set ALPACA_KEY and ALPACA_SECRET in environment/secrets.")
