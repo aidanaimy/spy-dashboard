@@ -134,54 +134,66 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
                 return pd.Series(series.values, index=target_index)
             return None
     
-    # VWAP overlay
+    # VWAP overlay - explicitly bind to row 1 subplot
     if vwap is not None:
         vwap_aligned = align_series(vwap, df_copy.index)
         if vwap_aligned is not None and not vwap_aligned.isna().all():
-            fig.add_trace(go.Scatter(
+            vwap_trace = go.Scatter(
                 x=df_copy.index,
                 y=vwap_aligned,
                 mode='lines',
                 name='VWAP',
-                line=dict(color='#2196F3', width=2.5)
-            ), row=1, col=1)
+                line=dict(color='#2196F3', width=2.5),
+                xaxis='x',
+                yaxis='y'
+            )
+            fig.add_trace(vwap_trace, row=1, col=1)
     
-    # Fast EMA overlay
+    # Fast EMA overlay - explicitly bind to row 1 subplot
     if ema_fast is not None:
         ema_fast_aligned = align_series(ema_fast, df_copy.index)
         if ema_fast_aligned is not None and not ema_fast_aligned.isna().all():
-            fig.add_trace(go.Scatter(
+            ema_fast_trace = go.Scatter(
                 x=df_copy.index,
                 y=ema_fast_aligned,
                 mode='lines',
                 name=f'EMA {9}',
-                line=dict(color='#FF9800', width=2)
-            ), row=1, col=1)
+                line=dict(color='#FF9800', width=2),
+                xaxis='x',
+                yaxis='y'
+            )
+            fig.add_trace(ema_fast_trace, row=1, col=1)
     
-    # Slow EMA overlay
+    # Slow EMA overlay - explicitly bind to row 1 subplot
     if ema_slow is not None:
         ema_slow_aligned = align_series(ema_slow, df_copy.index)
         if ema_slow_aligned is not None and not ema_slow_aligned.isna().all():
-            fig.add_trace(go.Scatter(
+            ema_slow_trace = go.Scatter(
                 x=df_copy.index,
                 y=ema_slow_aligned,
                 mode='lines',
                 name=f'EMA {21}',
-                line=dict(color='#9C27B0', width=2)
-            ), row=1, col=1)
+                line=dict(color='#9C27B0', width=2),
+                xaxis='x',
+                yaxis='y'
+            )
+            fig.add_trace(ema_slow_trace, row=1, col=1)
     
-    # Volume bars
+    # Volume bars - explicitly bind to row 2 subplot
     if 'Volume' in df_copy.columns:
         colors = ['#26a69a' if df_copy.loc[idx, 'Close'] >= df_copy.loc[idx, 'Open'] else '#ef5350' 
                  for idx in df_copy.index]
-        fig.add_trace(go.Bar(
+        volume_trace = go.Bar(
             x=df_copy.index,
             y=df_copy['Volume'],
             name='Volume',
             marker_color=colors,
             opacity=0.6,
-            showlegend=False
-        ), row=2, col=1)
+            showlegend=False,
+            xaxis='x2',
+            yaxis='y2'
+        )
+        fig.add_trace(volume_trace, row=2, col=1)
     
     
     
