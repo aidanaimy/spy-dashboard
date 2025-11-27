@@ -407,6 +407,24 @@ def main():
             get_cached_daily_data.clear()
             get_cached_intraday_data.clear()
             st.rerun()
+            
+        if st.button("🧹 Clear Cache & Reboot"):
+            # Clear Streamlit cache
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            
+            # Clear yfinance cache (platformdirs)
+            import shutil
+            import platformdirs
+            try:
+                cache_dir = platformdirs.user_cache_dir("py-yfinance")
+                if os.path.exists(cache_dir):
+                    shutil.rmtree(cache_dir)
+                    st.success(f"Cleared yfinance cache at {cache_dir}")
+            except Exception as e:
+                st.error(f"Failed to clear yfinance cache: {e}")
+                
+            st.rerun()
         
         # Show last update time
         if st.session_state.last_update:
