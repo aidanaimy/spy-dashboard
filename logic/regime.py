@@ -156,29 +156,29 @@ def get_0dte_permission(trend: str, gap_pct: float, range_pct: float) -> Dict[st
         range_pct: Range percentage
         
     Returns:
-        Dictionary with 'status' ('RED', 'YELLOW', 'GREEN') and 'reason'
+        Dictionary with 'status' ('AVOID', 'CAUTION', 'FAVORABLE') and 'reason'
     """
     gap_abs = abs(gap_pct)
     
-    # RED: small gap + low range = likely chop
+    # AVOID: small gap + low range = likely chop
     if gap_abs < config.GAP_SMALL_THRESHOLD * 100 and range_pct < config.RANGE_LOW_THRESHOLD * 100:
         return {
-            'status': 'RED',
+            'status': 'AVOID',
             'reason': 'Likely chop - avoid aggressive 0DTE directions',
             'score': 0.0
         }
     
-    # GREEN: high range = volatile day, directional OK
+    # FAVORABLE: high range = volatile day, directional OK
     if range_pct > config.RANGE_HIGH_THRESHOLD * 100:
         return {
-            'status': 'GREEN',
+            'status': 'FAVORABLE',
             'reason': 'Volatile day - directional 0DTE OK',
             'score': 1.0
         }
     
-    # YELLOW: mixed conditions
+    # CAUTION: mixed conditions
     return {
-        'status': 'YELLOW',
+        'status': 'CAUTION',
         'reason': 'Mixed conditions - use caution',
         'score': range_pct / (config.RANGE_HIGH_THRESHOLD * 100)
     }

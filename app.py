@@ -283,9 +283,9 @@ if 'last_refresh_counter' not in st.session_state:
 def get_status_color(status: str) -> str:
     """Get color for 0DTE status badge."""
     colors = {
-        'RED': '#FF4444',
-        'YELLOW': '#FFAA00',
-        'GREEN': '#00AA00'
+        'AVOID': '#FF4444',      # Red
+        'CAUTION': '#FFAA00',    # Yellow/Orange
+        'FAVORABLE': '#00AA00'   # Green
     }
     return colors.get(status, '#888888')
 

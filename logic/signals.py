@@ -164,15 +164,15 @@ def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[D
     reason = signal.get('reason', '')
 
     permission = regime.get('0dte_status')
-    if permission == 'RED' and direction != 'NONE':
+    if permission == 'AVOID' and direction != 'NONE':
         return {
             'direction': direction,
             'confidence': 'LOW',
-            'reason': f"{reason}; 0DTE RED (choppy)"
+            'reason': f"{reason}; 0DTE AVOID (choppy)"
         }
-    elif permission == 'GREEN' and confidence == 'MEDIUM':
+    elif permission == 'FAVORABLE' and confidence == 'MEDIUM':
         confidence = 'HIGH'
-        reason = f"{reason}; 0DTE GREEN (volatile)"
+        reason = f"{reason}; 0DTE FAVORABLE (volatile)"
 
     if market_phase:
         phase_label = market_phase.get('label', '')
