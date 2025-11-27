@@ -117,7 +117,15 @@ class BacktestEngine:
                     # Filter to this day (in case we got extra data)
                     if not intraday_df.empty:
                         intraday_df.index = pd.to_datetime(intraday_df.index)
-                        intraday_df = intraday_df[intraday_df.index.date == day.date()]
+                        # Handle timezone-aware indices: get date properly for comparison
+                        target_date = day.date()
+                        if intraday_df.index.tz is not None:
+                            # For timezone-aware, extract date component properly
+                            intraday_df['_date'] = intraday_df.index.date
+                            intraday_df = intraday_df[intraday_df['_date'] == target_date].drop(columns=['_date'])
+                        else:
+                            # For timezone-naive, use date directly
+                            intraday_df = intraday_df[intraday_df.index.date == target_date]
                 except Exception as e:
                     # If intraday not available for this day, skip it
                     days_skipped += 1
@@ -193,8 +201,12 @@ class BacktestEngine:
                 
                 if self.use_options:
                     print(f"DEBUG Loop Start for {day.date()}: Total bars in dataframe = {len(intraday_df_sorted)}")
+                    if len(intraday_df_sorted) > 0:
+                        print(f"  First bar: {intraday_df_sorted.index[0]}")
+                        print(f"  Last bar: {intraday_df_sorted.index[-1]}")
                 
-                for idx, row in intraday_df_sorted.iterrows():
+                try:
+                    for idx, row in intraday_df_sorted.iterrows():
                     # Check session time (9:45 - 15:30)
                     if hasattr(idx, 'strftime'):
                         time_str = idx.strftime('%H:%M')
@@ -558,6 +570,12 @@ class BacktestEngine:
                         'timestamp': idx,
                         'equity': equity
                     })
+                except Exception as e:
+                    import traceback
+                    print(f"ERROR processing bars for {day.date()}: {str(e)}")
+                    traceback.print_exc()
+                    days_skipped += 1
+                    continue
                 
                 # Debug: Show loop summary
                 if self.use_options:
@@ -589,8 +607,23 @@ class BacktestEngine:
                         strike = current_position.get('strike', get_atm_strike(exit_underlying_price))
                         option_type = 'call' if current_position['direction'] == 'LONG' else 'put'
                         
-                        # At EOD (4:00 PM), T = 0 (expiration)
-                        T = 0.0
+                        # Calculate T based on actual exit time (not always 0.0)
+                        # If exit is at or after 4:00 PM, T = 0 (expiration)
+                        # Otherwise, calculate time to expiration from exit time
+                        if hasattr(exit_time, 'hour') and hasattr(exit_time, 'minute'):
+                            exit_hour = exit_time.hour
+                            exit_minute = exit_time.minute
+                        else:
+                            exit_dt = pd.to_datetime(exit_time)
+                            exit_hour = exit_dt.hour
+                            exit_minute = exit_dt.minute
+                        
+                        # If exit is at 16:00 (4:00 PM) or later, T = 0 (expiration)
+                        if exit_hour >= 16:
+                            T = 0.0
+                        else:
+                            # Calculate time to expiration from exit time
+                            T = time_to_expiration_0dte(exit_hour, exit_minute)
                         
                         # Use entry IV (or VIX if available, default to 20.0 if None)
                         vix_level = iv_context.get('vix_level') or 20.0
@@ -629,7 +662,7 @@ class BacktestEngine:
                         
                         trades.append({
                             'entry_time': current_position['entry_time'],
-                            'exit_time': intraday_df_sorted.index[-1],
+                            'exit_time': exit_time,
                             'direction': current_position['direction'],
                             'entry_price': entry_price,
                             'exit_price': exit_underlying_price,
