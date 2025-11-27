@@ -367,8 +367,10 @@ def main():
         refresh_counter = st_autorefresh(interval=config.AUTO_REFRESH_INTERVAL, key="data_refresh")
         last_counter = st.session_state.get("last_refresh_counter", -1)
         if refresh_counter > last_counter:
+            # Force cache invalidation to ensure fresh data
             get_cached_intraday_data.clear()
             get_cached_daily_data.clear()
+            get_cached_iv_context.clear()
             st.session_state.last_refresh_counter = refresh_counter
     
     st.markdown("---")
@@ -417,6 +419,11 @@ def render_dashboard():
             # Update last refresh time
             st.session_state.last_update = datetime.now()
             
+            # Debug: show latest bar timestamp
+            if not intraday_df.empty:
+                latest_bar_time = intraday_df.index[-1]
+                st.caption(f"Latest bar: {latest_bar_time.strftime('%H:%M:%S ET')} | Current: {datetime.now(ZoneInfo('America/New_York')).strftime('%H:%M:%S ET')}")
+            
             # Filter to today only
             intraday_raw = intraday_df.copy()
             intraday_raw.index = pd.to_datetime(intraday_raw.index)
@@ -464,6 +471,8 @@ def render_dashboard():
             
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        import traceback
+        st.exception(e)
         return
     
     # ========== TODAY'S REGIME HEADER ==========
