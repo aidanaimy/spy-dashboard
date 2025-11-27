@@ -102,8 +102,9 @@ class BacktestEngine:
             try:
                 # Get intraday data for this specific day
                 # Calculate start and end of trading day
+                # IMPORTANT: yfinance end_date is EXCLUSIVE, so we need to add 1 day to get all bars
                 day_start = datetime.combine(day.date(), datetime.min.time().replace(hour=9, minute=30))
-                day_end = datetime.combine(day.date(), datetime.min.time().replace(hour=16, minute=0))
+                day_end = datetime.combine(day.date(), datetime.min.time().replace(hour=16, minute=0)) + timedelta(days=1)
                 
                 # Fetch intraday data for this specific day
                 try:
