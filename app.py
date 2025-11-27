@@ -1198,11 +1198,20 @@ def render_backtest():
             st.markdown("</div>", unsafe_allow_html=True)
         
         # Trades table
-        if 'trades' in results and len(results['trades']) > 0:
-            st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
-            st.subheader("Trades")
-            trades_df = results['trades']
+        if 'trades' in results:
+            trades_data = results['trades']
+            # Handle both empty list and DataFrame cases
+            if isinstance(trades_data, list):
+                if len(trades_data) > 0:
+                    trades_df = pd.DataFrame(trades_data)
+                else:
+                    trades_df = pd.DataFrame()
+            else:
+                trades_df = trades_data
+            
             if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
+                st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
+                st.subheader("Trades")
                 trades_html = trades_df.to_html(
                     classes="styled-table",
                     index=False,
@@ -1210,9 +1219,7 @@ def render_backtest():
                     justify="center"
                 )
                 st.markdown(trades_html, unsafe_allow_html=True)
-            else:
-                st.info("No trades to display.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
