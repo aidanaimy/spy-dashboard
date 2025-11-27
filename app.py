@@ -617,7 +617,11 @@ def render_dashboard():
     trend_color = "#2bd47d" if regime['trend'] == "Bullish" else "#ff5f6d" if regime['trend'] == "Bearish" else "#f7b500"
     regime_cards = []
     
-    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f}</div></div><div class="metric-card"><div class="label">20D / 50D</div><div class="value">${regime['ma_short']:.0f} / ${regime['ma_long']:.0f}</div></div></div>"""
+    # Calculate distance from MAs for additional context
+    dist_from_20d = ((regime['latest_close'] - regime['ma_short']) / regime['ma_short']) * 100
+    dist_from_50d = ((regime['latest_close'] - regime['ma_long']) / regime['ma_long']) * 100 if regime['ma_long'] > 0 else 0
+    
+    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f}</div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div><div class="metric-card"><div class="label">Above 20D</div><div class="value">{dist_from_20d:+.2f}%</div></div></div>"""
     regime_cards.append(build_info_card("Trend Bias", "📊", trend_body, trend_color))
     
     gap_sign = "+" if regime['gap'] > 0 else ""
@@ -626,7 +630,10 @@ def render_dashboard():
     
     status = regime['0dte_status']
     status_color = get_status_color(status)
-    permission_body = f"""<div><div class="permission-bar" style="background:{status_color};">{status}</div><p style="text-align:center;">{regime['0dte_reason']}</p></div>"""
+    
+    # Add context metrics for 0DTE Permission
+    gap_abs = abs(regime['gap_pct'])
+    permission_body = f"""<div><div class="permission-bar" style="background:{status_color}; font-size:1.4rem; padding:1.5rem;">{status}</div><p style="text-align:center; margin-bottom:1rem;">{regime['0dte_reason']}</p><div class="metric-grid"><div class="metric-card"><div class="label">Gap Size</div><div class="value">{gap_abs:.2f}%</div></div><div class="metric-card"><div class="label">Range</div><div class="value">{regime['range_pct']:.2f}%</div></div></div></div>"""
     regime_cards.append(build_info_card("0DTE Permission", "🚦", permission_body, status_color))
 
     # IV context card
