@@ -207,47 +207,176 @@ class BacktestEngine:
                 
                 try:
                     for idx, row in intraday_df_sorted.iterrows():
-                    # Check session time (9:45 - 15:30)
-                    if hasattr(idx, 'strftime'):
-                        time_str = idx.strftime('%H:%M')
-                    elif hasattr(idx, 'time'):
-                        time_str = idx.time().strftime('%H:%M')
-                    else:
-                        # Try to parse as datetime
-                        try:
-                            idx_dt = pd.to_datetime(idx)
-                            time_str = idx_dt.strftime('%H:%M')
-                        except:
-                            time_str = "00:00"  # Default if can't parse
-                    
-                    # Filter bars: start at SESSION_START, but allow until market close (16:00) for exits
-                    if time_str < config.SESSION_START:
-                        bars_skipped_before_start += 1
-                        continue
-                    if time_str > "16:00":  # Market close - no processing after this
-                        bars_skipped_after_close += 1
-                        continue
-                    
-                    last_processed_time = idx
-                    bars_processed += 1
-                    
-                    current_price = row['Close']
-                    
-                    # Debug: Show bar data at 14:55 to verify we're using correct bar
-                    if self.use_options and time_str == "14:55":
-                        print(f"DEBUG 14:55 Bar: idx={idx}, time_str={time_str}, Close={current_price:.2f}, "
-                              f"High={row.get('High', 'N/A')}, Low={row.get('Low', 'N/A')}, Open={row.get('Open', 'N/A')}")
-                    
-                    # Block entries at and after BLOCK_TRADE_AFTER time (15:30)
-                    # But continue processing exits until market close (16:00)
-                    if time_str >= config.BLOCK_TRADE_AFTER:
-                        # Still process exits, but no new entries
+                        # Check session time (9:45 - 15:30)
+                        if hasattr(idx, 'strftime'):
+                            time_str = idx.strftime('%H:%M')
+                        elif hasattr(idx, 'time'):
+                            time_str = idx.time().strftime('%H:%M')
+                        else:
+                            # Try to parse as datetime
+                            try:
+                                idx_dt = pd.to_datetime(idx)
+                                time_str = idx_dt.strftime('%H:%M')
+                            except:
+                                time_str = "00:00"  # Default if can't parse
+                        
+                        # Filter bars: start at SESSION_START, but allow until market close (16:00) for exits
+                        if time_str < config.SESSION_START:
+                            bars_skipped_before_start += 1
+                            continue
+                        if time_str > "16:00":  # Market close - no processing after this
+                            bars_skipped_after_close += 1
+                            continue
+                        
+                        last_processed_time = idx
+                        bars_processed += 1
+                        
+                        current_price = row['Close']
+                        
+                        # Debug: Show bar data at 14:55 to verify we're using correct bar
+                        if self.use_options and time_str == "14:55":
+                            print(f"DEBUG 14:55 Bar: idx={idx}, time_str={time_str}, Close={current_price:.2f}, "
+                                  f"High={row.get('High', 'N/A')}, Low={row.get('Low', 'N/A')}, Open={row.get('Open', 'N/A')}")
+                        
+                        # Block entries at and after BLOCK_TRADE_AFTER time (15:30)
+                        # But continue processing exits until market close (16:00)
+                        if time_str >= config.BLOCK_TRADE_AFTER:
+                            # Still process exits, but no new entries
+                            if current_position is not None:
+                                entry_price = current_position['entry_price']
+                                entry_underlying_price = current_position.get('entry_underlying_price', entry_price)
+                                
+                                if self.use_options:
+                                    # Options mode
+                                    strike = current_position.get('strike', get_atm_strike(current_price))
+                                    option_type = 'call' if current_position['direction'] == 'LONG' else 'put'
+                                    
+                                    # Get time to expiration
+                                    if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                        hours = idx.hour
+                                        minutes = idx.minute
+                                    else:
+                                        idx_dt = pd.to_datetime(idx)
+                                        hours = idx_dt.hour
+                                        minutes = idx_dt.minute
+                                    
+                                    T = time_to_expiration_0dte(hours, minutes)
+                                    # Use stored entry IV or fallback to VIX (default 20.0 if None)
+                                    vix_level = iv_context.get('vix_level') or 20.0
+                                    sigma = current_position.get('entry_iv', vix_level / 100.0)
+                                    
+                                    current_option_price = self._get_option_price(
+                                        current_price, strike, T, sigma, option_type
+                                    )
+                                    
+                                    entry_option_price = current_position.get('entry_option_price', entry_price)
+                                    pnl_pct = (current_option_price - entry_option_price) / entry_option_price if entry_option_price > 0 else 0
+                                    
+                                    exit_reason = None
+                                    if pnl_pct >= self.options_tp_pct:
+                                        exit_reason = 'TP'
+                                    elif pnl_pct <= -self.options_sl_pct:
+                                        exit_reason = 'SL'
+                                    elif time_str >= config.SESSION_END:
+                                        exit_reason = 'EOD'
+                                    
+                                    if exit_reason:
+                                        pnl = self._calculate_options_pnl(entry_option_price, current_option_price)
+                                        equity += pnl
+                                        trades.append({
+                                            'entry_time': current_position['entry_time'],
+                                            'exit_time': idx,
+                                            'direction': current_position['direction'],
+                                            'entry_price': entry_option_price,
+                                            'exit_price': current_option_price,
+                                            'entry_underlying': entry_underlying_price,
+                                            'exit_underlying': current_price,
+                                            'pnl': pnl,
+                                            'exit_reason': exit_reason,
+                                            'strike': strike
+                                        })
+                                        current_position = None
+                                else:
+                                    # Shares mode
+                                    if current_position['direction'] == 'LONG':
+                                        pnl_pct = (current_price - entry_price) / entry_price
+                                    else:
+                                        pnl_pct = (entry_price - current_price) / entry_price
+                                    
+                                    exit_reason = None
+                                    if pnl_pct >= self.tp_pct:
+                                        exit_reason = 'TP'
+                                    elif pnl_pct <= -self.sl_pct:
+                                        exit_reason = 'SL'
+                                    elif time_str >= config.SESSION_END:
+                                        exit_reason = 'EOD'
+                                    
+                                    if exit_reason:
+                                        if current_position['direction'] == 'LONG':
+                                            pnl = (current_price - entry_price) * self.position_size
+                                        else:
+                                            pnl = (entry_price - current_price) * self.position_size
+                                        
+                                        equity += pnl
+                                        trades.append({
+                                            'entry_time': current_position['entry_time'],
+                                            'exit_time': idx,
+                                            'direction': current_position['direction'],
+                                            'entry_price': entry_price,
+                                            'exit_price': current_price,
+                                            'pnl': pnl,
+                                            'exit_reason': exit_reason
+                                        })
+                                        current_position = None
+                            
+                            # Skip signal generation and entry after block time
+                            equity_curve.append({
+                                'timestamp': idx,
+                                'equity': equity
+                            })
+                            continue
+                        
+                        # Analyze intraday at this point
+                        intraday_data = analyze_intraday(intraday_df_sorted.loc[:idx])
+                        
+                        # Get market phase for time filtering
+                        if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                            et_time = idx
+                        else:
+                            et_time = pd.to_datetime(idx)
+                        
+                        minutes = et_time.hour * 60 + et_time.minute
+                        if minutes < 9 * 60 + 30:
+                            market_phase = {"label": "Pre-Market", "is_open": False}
+                        elif minutes < 11 * 60:
+                            market_phase = {"label": "Open Drive", "is_open": True}
+                        elif minutes < 13 * 60 + 30:
+                            market_phase = {"label": "Midday", "is_open": True}
+                        elif minutes < 14 * 60 + 30:
+                            market_phase = {"label": "Afternoon Drift", "is_open": True}
+                        elif minutes < 15 * 60 + 30:
+                            market_phase = {"label": "Power Hour", "is_open": True}
+                        else:
+                            market_phase = {"label": "After Hours", "is_open": False}
+                        
+                        # Generate signal (with time filtering, chop detection, and IV/VIX context)
+                        signal = generate_signal(
+                            regime, 
+                            intraday_data,
+                            current_time=idx,
+                            intraday_df=intraday_df_sorted.loc[:idx],
+                            iv_context=iv_context,
+                            market_phase=market_phase,
+                            options_mode=self.use_options  # Apply stricter filters for options mode
+                        )
+                        
+                        # Check for exit conditions if in position
                         if current_position is not None:
                             entry_price = current_position['entry_price']
                             entry_underlying_price = current_position.get('entry_underlying_price', entry_price)
                             
                             if self.use_options:
-                                # Options mode
+                                # Options mode: Calculate option price and check TP/SL based on option P/L %
                                 strike = current_position.get('strike', get_atm_strike(current_price))
                                 option_type = 'call' if current_position['direction'] == 'LONG' else 'put'
                                 
@@ -272,17 +401,30 @@ class BacktestEngine:
                                 entry_option_price = current_position.get('entry_option_price', entry_price)
                                 pnl_pct = (current_option_price - entry_option_price) / entry_option_price if entry_option_price > 0 else 0
                                 
+                                # Debug: Print every bar when in position to see price progression
+                                if self.use_options and current_position is not None:
+                                    print(f"DEBUG Options Check: Time={idx} ({time_str}), Underlying={current_price:.2f}, "
+                                          f"Option_Price={current_option_price:.4f}, PnL%={pnl_pct*100:.2f}%, "
+                                          f"T={T:.6f}, Strike={strike}")
+                                
                                 exit_reason = None
                                 if pnl_pct >= self.options_tp_pct:
                                     exit_reason = 'TP'
                                 elif pnl_pct <= -self.options_sl_pct:
                                     exit_reason = 'SL'
-                                elif time_str >= config.SESSION_END:
+                                elif time_str >= "16:00":  # Market close - exit all positions
                                     exit_reason = 'EOD'
                                 
                                 if exit_reason:
                                     pnl = self._calculate_options_pnl(entry_option_price, current_option_price)
                                     equity += pnl
+                                    
+                                    # Debug: Print exit details for verification
+                                    print(f"DEBUG {exit_reason} Exit: Time={idx} ({time_str}), Underlying={current_price:.2f}, "
+                                          f"Entry_Underlying={entry_underlying_price:.2f}, "
+                                          f"Option_Entry={entry_option_price:.4f}, Option_Exit={current_option_price:.4f}, "
+                                          f"Strike={strike}, T={T:.6f}, IV={sigma:.4f}, PnL%={pnl_pct*100:.2f}%")
+                                    
                                     trades.append({
                                         'entry_time': current_position['entry_time'],
                                         'exit_time': idx,
@@ -295,29 +437,35 @@ class BacktestEngine:
                                         'exit_reason': exit_reason,
                                         'strike': strike
                                     })
+                                    
                                     current_position = None
                             else:
-                                # Shares mode
+                                # Shares mode: Calculate P/L percentage based on underlying
                                 if current_position['direction'] == 'LONG':
                                     pnl_pct = (current_price - entry_price) / entry_price
-                                else:
+                                else:  # SHORT
                                     pnl_pct = (entry_price - current_price) / entry_price
                                 
+                                # Check TP/SL
                                 exit_reason = None
                                 if pnl_pct >= self.tp_pct:
                                     exit_reason = 'TP'
                                 elif pnl_pct <= -self.sl_pct:
                                     exit_reason = 'SL'
-                                elif time_str >= config.SESSION_END:
+                                
+                                # Exit at end of session (15:30)
+                                if time_str >= config.SESSION_END:
                                     exit_reason = 'EOD'
                                 
                                 if exit_reason:
+                                    # Close position
                                     if current_position['direction'] == 'LONG':
                                         pnl = (current_price - entry_price) * self.position_size
                                     else:
                                         pnl = (entry_price - current_price) * self.position_size
                                     
                                     equity += pnl
+                                    
                                     trades.append({
                                         'entry_time': current_position['entry_time'],
                                         'exit_time': idx,
@@ -327,249 +475,101 @@ class BacktestEngine:
                                         'pnl': pnl,
                                         'exit_reason': exit_reason
                                     })
+                                    
                                     current_position = None
                         
-                        # Skip signal generation and entry after block time
+                        # Check for entry if no position
+                        if current_position is None:
+                            if self.use_options:
+                                # Options mode: Calculate option price at entry
+                                # Note: options_mode filter already ensures only HIGH confidence signals pass
+                                if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
+                                    strike = get_atm_strike(current_price)
+                                    option_type = 'call'
+                                    
+                                    # Get time to expiration
+                                    if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                        hours = idx.hour
+                                        minutes = idx.minute
+                                    else:
+                                        idx_dt = pd.to_datetime(idx)
+                                        hours = idx_dt.hour
+                                        minutes = idx_dt.minute
+                                    
+                                    T = time_to_expiration_0dte(hours, minutes)
+                                    
+                                    # Use VIX as proxy for IV (default to 20.0 if None or missing)
+                                    vix_level = iv_context.get('vix_level') or 20.0
+                                    sigma = vix_level / 100.0
+                                    
+                                    # Calculate entry option price
+                                    entry_option_price = self._get_option_price(
+                                        current_price, strike, T, sigma, option_type
+                                    )
+                                    
+                                    current_position = {
+                                        'direction': 'LONG',
+                                        'entry_price': entry_option_price,
+                                        'entry_underlying_price': current_price,
+                                        'entry_option_price': entry_option_price,
+                                        'entry_time': idx,
+                                        'strike': strike,
+                                        'entry_iv': sigma
+                                    }
+                                elif signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
+                                    # Options mode: Only enter on HIGH confidence (filtered by options_mode)
+                                    strike = get_atm_strike(current_price)
+                                    option_type = 'put'
+                                    
+                                    # Get time to expiration
+                                    if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                        hours = idx.hour
+                                        minutes = idx.minute
+                                    else:
+                                        idx_dt = pd.to_datetime(idx)
+                                        hours = idx_dt.hour
+                                        minutes = idx_dt.minute
+                                    
+                                    T = time_to_expiration_0dte(hours, minutes)
+                                    
+                                    # Use VIX as proxy for IV (default to 20.0 if None or missing)
+                                    vix_level = iv_context.get('vix_level') or 20.0
+                                    sigma = vix_level / 100.0
+                                    
+                                    # Calculate entry option price
+                                    entry_option_price = self._get_option_price(
+                                        current_price, strike, T, sigma, option_type
+                                    )
+                                    
+                                    current_position = {
+                                        'direction': 'SHORT',
+                                        'entry_price': entry_option_price,
+                                        'entry_underlying_price': current_price,
+                                        'entry_option_price': entry_option_price,
+                                        'entry_time': idx,
+                                        'strike': strike,
+                                        'entry_iv': sigma
+                                    }
+                            else:
+                                # Shares mode: Original logic
+                                if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                    current_position = {
+                                        'direction': 'LONG',
+                                        'entry_price': current_price,
+                                        'entry_time': idx
+                                    }
+                                elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                    current_position = {
+                                        'direction': 'SHORT',
+                                        'entry_price': current_price,
+                                        'entry_time': idx
+                                    }
+                        
+                        # Record equity
                         equity_curve.append({
                             'timestamp': idx,
                             'equity': equity
                         })
-                        continue
-                    
-                    # Analyze intraday at this point
-                    intraday_data = analyze_intraday(intraday_df_sorted.loc[:idx])
-                    
-                    # Get market phase for time filtering
-                    if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
-                        et_time = idx
-                    else:
-                        et_time = pd.to_datetime(idx)
-                    
-                    minutes = et_time.hour * 60 + et_time.minute
-                    if minutes < 9 * 60 + 30:
-                        market_phase = {"label": "Pre-Market", "is_open": False}
-                    elif minutes < 11 * 60:
-                        market_phase = {"label": "Open Drive", "is_open": True}
-                    elif minutes < 13 * 60 + 30:
-                        market_phase = {"label": "Midday", "is_open": True}
-                    elif minutes < 14 * 60 + 30:
-                        market_phase = {"label": "Afternoon Drift", "is_open": True}
-                    elif minutes < 15 * 60 + 30:
-                        market_phase = {"label": "Power Hour", "is_open": True}
-                    else:
-                        market_phase = {"label": "After Hours", "is_open": False}
-                    
-                    # Generate signal (with time filtering, chop detection, and IV/VIX context)
-                    signal = generate_signal(
-                        regime, 
-                        intraday_data,
-                        current_time=idx,
-                        intraday_df=intraday_df_sorted.loc[:idx],
-                        iv_context=iv_context,
-                        market_phase=market_phase,
-                        options_mode=self.use_options  # Apply stricter filters for options mode
-                    )
-                    
-                    # Check for exit conditions if in position
-                    if current_position is not None:
-                        entry_price = current_position['entry_price']
-                        entry_underlying_price = current_position.get('entry_underlying_price', entry_price)
-                        
-                        if self.use_options:
-                            # Options mode: Calculate option price and check TP/SL based on option P/L %
-                            strike = current_position.get('strike', get_atm_strike(current_price))
-                            option_type = 'call' if current_position['direction'] == 'LONG' else 'put'
-                            
-                            # Get time to expiration
-                            if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
-                                hours = idx.hour
-                                minutes = idx.minute
-                            else:
-                                idx_dt = pd.to_datetime(idx)
-                                hours = idx_dt.hour
-                                minutes = idx_dt.minute
-                            
-                            T = time_to_expiration_0dte(hours, minutes)
-                            # Use stored entry IV or fallback to VIX (default 20.0 if None)
-                            vix_level = iv_context.get('vix_level') or 20.0
-                            sigma = current_position.get('entry_iv', vix_level / 100.0)
-                            
-                            current_option_price = self._get_option_price(
-                                current_price, strike, T, sigma, option_type
-                            )
-                            
-                            entry_option_price = current_position.get('entry_option_price', entry_price)
-                            pnl_pct = (current_option_price - entry_option_price) / entry_option_price if entry_option_price > 0 else 0
-                            
-                            # Debug: Print every bar when in position to see price progression
-                            if self.use_options and current_position is not None:
-                                print(f"DEBUG Options Check: Time={idx} ({time_str}), Underlying={current_price:.2f}, "
-                                      f"Option_Price={current_option_price:.4f}, PnL%={pnl_pct*100:.2f}%, "
-                                      f"T={T:.6f}, Strike={strike}")
-                            
-                            exit_reason = None
-                            if pnl_pct >= self.options_tp_pct:
-                                exit_reason = 'TP'
-                            elif pnl_pct <= -self.options_sl_pct:
-                                exit_reason = 'SL'
-                            elif time_str >= "16:00":  # Market close - exit all positions
-                                exit_reason = 'EOD'
-                            
-                            if exit_reason:
-                                pnl = self._calculate_options_pnl(entry_option_price, current_option_price)
-                                equity += pnl
-                                
-                                # Debug: Print exit details for verification
-                                print(f"DEBUG {exit_reason} Exit: Time={idx} ({time_str}), Underlying={current_price:.2f}, "
-                                      f"Entry_Underlying={entry_underlying_price:.2f}, "
-                                      f"Option_Entry={entry_option_price:.4f}, Option_Exit={current_option_price:.4f}, "
-                                      f"Strike={strike}, T={T:.6f}, IV={sigma:.4f}, PnL%={pnl_pct*100:.2f}%")
-                                
-                                trades.append({
-                                    'entry_time': current_position['entry_time'],
-                                    'exit_time': idx,
-                                    'direction': current_position['direction'],
-                                    'entry_price': entry_option_price,
-                                    'exit_price': current_option_price,
-                                    'entry_underlying': entry_underlying_price,
-                                    'exit_underlying': current_price,
-                                    'pnl': pnl,
-                                    'exit_reason': exit_reason,
-                                    'strike': strike
-                                })
-                                
-                                current_position = None
-                        else:
-                            # Shares mode: Calculate P/L percentage based on underlying
-                            if current_position['direction'] == 'LONG':
-                                pnl_pct = (current_price - entry_price) / entry_price
-                            else:  # SHORT
-                                pnl_pct = (entry_price - current_price) / entry_price
-                            
-                            # Check TP/SL
-                            exit_reason = None
-                            if pnl_pct >= self.tp_pct:
-                                exit_reason = 'TP'
-                            elif pnl_pct <= -self.sl_pct:
-                                exit_reason = 'SL'
-                            
-                            # Exit at end of session (15:30)
-                            if time_str >= config.SESSION_END:
-                                exit_reason = 'EOD'
-                            
-                            if exit_reason:
-                                # Close position
-                                if current_position['direction'] == 'LONG':
-                                    pnl = (current_price - entry_price) * self.position_size
-                                else:
-                                    pnl = (entry_price - current_price) * self.position_size
-                                
-                                equity += pnl
-                                
-                                trades.append({
-                                    'entry_time': current_position['entry_time'],
-                                    'exit_time': idx,
-                                    'direction': current_position['direction'],
-                                    'entry_price': entry_price,
-                                    'exit_price': current_price,
-                                    'pnl': pnl,
-                                    'exit_reason': exit_reason
-                                })
-                                
-                                current_position = None
-                    
-                    # Check for entry if no position
-                    if current_position is None:
-                        if self.use_options:
-                            # Options mode: Calculate option price at entry
-                            # Note: options_mode filter already ensures only HIGH confidence signals pass
-                            if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
-                                strike = get_atm_strike(current_price)
-                                option_type = 'call'
-                                
-                                # Get time to expiration
-                                if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
-                                    hours = idx.hour
-                                    minutes = idx.minute
-                                else:
-                                    idx_dt = pd.to_datetime(idx)
-                                    hours = idx_dt.hour
-                                    minutes = idx_dt.minute
-                                
-                                T = time_to_expiration_0dte(hours, minutes)
-                                
-                                # Use VIX as proxy for IV (default to 20.0 if None or missing)
-                                vix_level = iv_context.get('vix_level') or 20.0
-                                sigma = vix_level / 100.0
-                                
-                                # Calculate entry option price
-                                entry_option_price = self._get_option_price(
-                                    current_price, strike, T, sigma, option_type
-                                )
-                                
-                                current_position = {
-                                    'direction': 'LONG',
-                                    'entry_price': entry_option_price,
-                                    'entry_underlying_price': current_price,
-                                    'entry_option_price': entry_option_price,
-                                    'entry_time': idx,
-                                    'strike': strike,
-                                    'entry_iv': sigma
-                                }
-                            elif signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
-                                # Options mode: Only enter on HIGH confidence (filtered by options_mode)
-                                strike = get_atm_strike(current_price)
-                                option_type = 'put'
-                                
-                                # Get time to expiration
-                                if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
-                                    hours = idx.hour
-                                    minutes = idx.minute
-                                else:
-                                    idx_dt = pd.to_datetime(idx)
-                                    hours = idx_dt.hour
-                                    minutes = idx_dt.minute
-                                
-                                T = time_to_expiration_0dte(hours, minutes)
-                                
-                                # Use VIX as proxy for IV (default to 20.0 if None or missing)
-                                vix_level = iv_context.get('vix_level') or 20.0
-                                sigma = vix_level / 100.0
-                                
-                                # Calculate entry option price
-                                entry_option_price = self._get_option_price(
-                                    current_price, strike, T, sigma, option_type
-                                )
-                                
-                                current_position = {
-                                    'direction': 'SHORT',
-                                    'entry_price': entry_option_price,
-                                    'entry_underlying_price': current_price,
-                                    'entry_option_price': entry_option_price,
-                                    'entry_time': idx,
-                                    'strike': strike,
-                                    'entry_iv': sigma
-                                }
-                        else:
-                            # Shares mode: Original logic
-                            if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
-                                current_position = {
-                                    'direction': 'LONG',
-                                    'entry_price': current_price,
-                                    'entry_time': idx
-                                }
-                            elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
-                                current_position = {
-                                    'direction': 'SHORT',
-                                    'entry_price': current_price,
-                                    'entry_time': idx
-                                }
-                    
-                    # Record equity
-                    equity_curve.append({
-                        'timestamp': idx,
-                        'equity': equity
-                    })
                 except Exception as e:
                     import traceback
                     print(f"ERROR processing bars for {day.date()}: {str(e)}")
