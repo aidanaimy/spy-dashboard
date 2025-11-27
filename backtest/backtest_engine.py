@@ -186,6 +186,9 @@ class BacktestEngine:
                     # If VIX fetch fails, use empty context
                     iv_context = {}
                 
+                last_processed_time = None
+                bars_processed = 0
+                
                 for idx, row in intraday_df_sorted.iterrows():
                     # Check session time (9:45 - 15:30)
                     if hasattr(idx, 'strftime'):
@@ -205,6 +208,9 @@ class BacktestEngine:
                         continue
                     if time_str > "16:00":  # Market close - no processing after this
                         continue
+                    
+                    last_processed_time = idx
+                    bars_processed += 1
                     
                     current_price = row['Close']
                     
@@ -548,8 +554,21 @@ class BacktestEngine:
                 
                 # Close any remaining position at end of day
                 if current_position is not None:
-                    exit_underlying_price = intraday_df_sorted.iloc[-1]['Close']
+                    # Use last processed bar time, or fallback to last bar in dataframe
+                    if last_processed_time is not None:
+                        exit_time = last_processed_time
+                        exit_underlying_price = intraday_df_sorted.loc[exit_time, 'Close']
+                    else:
+                        exit_time = intraday_df_sorted.index[-1]
+                        exit_underlying_price = intraday_df_sorted.iloc[-1]['Close']
+                    
                     entry_price = current_position['entry_price']
+                    
+                    # Debug: Show why we're closing at EOD
+                    if self.use_options:
+                        print(f"DEBUG EOD Close: Entry={current_position['entry_time']}, Exit={exit_time}, "
+                              f"Total bars={len(intraday_df_sorted)}, Bars processed={bars_processed}, "
+                              f"Last processed={last_processed_time}")
                     
                     if self.use_options:
                         # Options mode: Calculate final option price at EOD
@@ -575,7 +594,7 @@ class BacktestEngine:
                         
                         trades.append({
                             'entry_time': current_position['entry_time'],
-                            'exit_time': intraday_df_sorted.index[-1],
+                            'exit_time': exit_time,
                             'direction': current_position['direction'],
                             'entry_price': entry_option_price,
                             'exit_price': exit_option_price,
