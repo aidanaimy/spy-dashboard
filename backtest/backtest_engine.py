@@ -537,8 +537,14 @@ class BacktestEngine:
         win_rate = len(winning_trades) / len(trades_df) if len(trades_df) > 0 else 0.0
         
         # Average R multiple (profit / risk)
-        # Risk = entry_price * sl_pct * position_size
-        trades_df['risk'] = trades_df['entry_price'] * self.sl_pct * self.position_size
+        if self.use_options:
+            # For options: risk = total premium paid (entry_price * 100 * contracts)
+            # Each contract = 100 shares, so premium per contract = entry_price * 100
+            trades_df['risk'] = trades_df['entry_price'] * 100 * self.options_contracts
+        else:
+            # For shares: risk = entry_price * sl_pct * position_size
+            trades_df['risk'] = trades_df['entry_price'] * self.sl_pct * self.position_size
+        
         trades_df['r_multiple'] = trades_df['pnl'] / trades_df['risk']
         trades_df['r_multiple'] = trades_df['r_multiple'].replace([np.inf, -np.inf], 0)
         trades_df['r_multiple'] = trades_df['r_multiple'].fillna(0)
