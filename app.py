@@ -131,13 +131,13 @@ st.markdown(
         .info-card {
             background: var(--panel-light);
             border-radius: 12px;
-            padding: 1.25rem;
+            padding: 1rem 1.25rem 1.25rem 1.25rem;
             border: 1px solid var(--border-color);
             position: relative;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
             height: 100%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             width: 100%;
@@ -158,7 +158,7 @@ st.markdown(
         }
 
         .info-card h4 {
-            margin: 0 0 1rem 0;
+            margin: 0 0 0.75rem 0;
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.1em;
@@ -181,7 +181,7 @@ st.markdown(
         .info-card p {
             color: var(--text-secondary);
             font-size: 0.9rem;
-            margin-bottom: 1.2rem;
+            margin-bottom: 0.75rem;
             line-height: 1.4;
         }
 
@@ -189,7 +189,7 @@ st.markdown(
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0.75rem;
-            margin-top: auto;
+            margin-top: 0.5rem;
         }
 
         .metric-card {
