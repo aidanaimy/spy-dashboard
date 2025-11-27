@@ -7,4 +7,6 @@ numpy>=1.24.0
 plotly>=5.17.0
 python-dotenv>=1.0.0
 requests>=2.31.0
+gspread>=6.0.0
+google-auth>=2.30.0
 

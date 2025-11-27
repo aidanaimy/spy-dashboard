@@ -53,7 +53,10 @@ app.py (Streamlit UI)
    - Regime tiles, volatility card, candlestick plot, stats panel, signal card, rationale panel.
 6. **Trade Journal**  
    - Manual trade logging with date/time, direction, bias, size, prices, notes. Auto-tagged “with system” or “against system.” Includes delete capability and P/L breakdowns.
-7. **Backtest**  
+7. **Signal Logging & Report**  
+   - Each Discord alert can also append to a Google Sheet (via service-account credentials), enabling the new “Signal Report” tab and daily stats even when you’re asleep.  
+   - Columns: timestamp, direction, confidence, price, micro trend, 0DTE status, market phase, rationale, ATM IV snapshot.
+8. **Backtest**  
    - Replays historical sessions using the identical signal stack. Trades 9:45–15:30 ET with configurable TP/SL (0.7% / 0.3%). Emits metrics + equity curve.
 
 ---
@@ -76,6 +79,7 @@ app.py (Streamlit UI)
 - Chop thresholds (`CHOP_*`)
 - Backtest parameters (`BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_POSITION_SIZE`)
 - Auto-refresh (`AUTO_REFRESH_ENABLED`, `AUTO_REFRESH_INTERVAL`)
+- Google Sheets logging (`GOOGLE_SHEET_NAME` + `gcp_service_account` secrets) if you want signal history + the report tab.
 
 Update values there to tune the system; the Streamlit app will respect your changes on next run.
 
