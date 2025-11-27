@@ -426,9 +426,14 @@ def main():
                 
             st.rerun()
         
-        # Show last update time
+        # Show last update time in user's local timezone
         if st.session_state.last_update:
-            st.caption(f"Last updated: {st.session_state.last_update.strftime('%H:%M:%S')}")
+            # Get local timezone name
+            import time
+            local_tz_name = time.tzname[time.daylight]  # e.g., "PST" or "PDT"
+            update_time_str = st.session_state.last_update.strftime('%I:%M:%S %p')
+            st.caption(f"Last updated: {update_time_str} {local_tz_name}")
+        
         
         st.markdown("---")
     
