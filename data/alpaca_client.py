@@ -17,10 +17,13 @@ try:
     # Load environment variables
     load_dotenv()
     
-    # Alpaca API credentials
-    ALPACA_KEY = os.getenv('ALPACA_KEY', 'PKX43KF3C2QORPCJZ3MQZF2C5V')
-    ALPACA_SECRET = os.getenv('ALPACA_SECRET', '2WqsawxRRhWJX2qq8Tf5zqYWWHdjYJUQ5RpSGYszLkG4')
+    # Alpaca API credentials (must be provided via environment / secrets)
+    ALPACA_KEY = os.getenv('ALPACA_KEY')
+    ALPACA_SECRET = os.getenv('ALPACA_SECRET')
     ALPACA_BASE_URL = os.getenv('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
+
+    if not ALPACA_KEY or not ALPACA_SECRET:
+        raise RuntimeError("Missing Alpaca API credentials. Set ALPACA_KEY and ALPACA_SECRET in environment/secrets.")
     
     # Initialize Alpaca API client
     try:
