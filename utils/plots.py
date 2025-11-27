@@ -12,18 +12,22 @@ from datetime import datetime, time
 
 def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None,
                               ema_fast: Optional[pd.Series] = None,
-                              ema_slow: Optional[pd.Series] = None) -> go.Figure:
+                              ema_slow: Optional[pd.Series] = None,
+                              current_price: Optional[float] = None,
+                              signal_direction: Optional[str] = None) -> go.Figure:
     """
-    Create a candlestick chart with VWAP and EMA overlays.
+    Create a candlestick chart with VWAP, EMA overlays, volume, and session markers.
     
     Args:
         df: Intraday OHLCV dataframe
         vwap: VWAP series (optional)
         ema_fast: Fast EMA series (optional)
         ema_slow: Slow EMA series (optional)
+        current_price: Current price for marker (optional)
+        signal_direction: Current signal direction for color coding (optional)
         
     Returns:
-        Plotly figure
+        Plotly figure with subplots
     """
     # Ensure timezone is ET and convert index if needed
     et_tz = ZoneInfo("America/New_York")
@@ -48,7 +52,14 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
         market_open = None
         market_close = None
     
-    fig = go.Figure()
+    # Create subplots: price chart on top, volume on bottom
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.03,
+        row_heights=[0.7, 0.3],
+        subplot_titles=('Price', 'Volume')
+    )
     
     # Candlestick
     fig.add_trace(go.Candlestick(
@@ -57,8 +68,49 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
         high=df_copy['High'],
         low=df_copy['Low'],
         close=df_copy['Close'],
-        name='SPY'
-    ))
+        name='SPY',
+        increasing_line_color='#26a69a',
+        decreasing_line_color='#ef5350',
+    ), row=1, col=1)
+    
+    # High/Low of day markers
+    if len(df_copy) > 0:
+        high_of_day = df_copy['High'].max()
+        low_of_day = df_copy['Low'].min()
+        high_time = df_copy['High'].idxmax()
+        low_time = df_copy['Low'].idxmin()
+        
+        fig.add_trace(go.Scatter(
+            x=[high_time],
+            y=[high_of_day],
+            mode='markers',
+            marker=dict(symbol='triangle-down', size=12, color='green', line=dict(width=1, color='darkgreen')),
+            name='High of Day',
+            showlegend=False,
+            hovertemplate='High: $%{y:.2f}<extra></extra>'
+        ), row=1, col=1)
+        
+        fig.add_trace(go.Scatter(
+            x=[low_time],
+            y=[low_of_day],
+            mode='markers',
+            marker=dict(symbol='triangle-up', size=12, color='red', line=dict(width=1, color='darkred')),
+            name='Low of Day',
+            showlegend=False,
+            hovertemplate='Low: $%{y:.2f}<extra></extra>'
+        ), row=1, col=1)
+    
+    # Current price line
+    if current_price is not None and len(df_copy) > 0:
+        signal_color = '#00ff00' if signal_direction == 'CALL' else '#ff0000' if signal_direction == 'PUT' else '#888888'
+        fig.add_trace(go.Scatter(
+            x=[df_copy.index[0], df_copy.index[-1]],
+            y=[current_price, current_price],
+            mode='lines',
+            name=f'Current: ${current_price:.2f}',
+            line=dict(color=signal_color, width=2, dash='dash'),
+            hovertemplate=f'Current Price: ${current_price:.2f}<extra></extra>'
+        ), row=1, col=1)
     
     # Helper function to convert series index to ET and align with df_copy
     def align_series(series, target_index):
@@ -90,8 +142,8 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
                 y=vwap_aligned,
                 mode='lines',
                 name='VWAP',
-                line=dict(color='blue', width=2)
-            ))
+                line=dict(color='#2196F3', width=2.5)
+            ), row=1, col=1)
     
     # Fast EMA overlay
     if ema_fast is not None:
@@ -102,8 +154,8 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
                 y=ema_fast_aligned,
                 mode='lines',
                 name=f'EMA {9}',
-                line=dict(color='orange', width=1.5)
-            ))
+                line=dict(color='#FF9800', width=2)
+            ), row=1, col=1)
     
     # Slow EMA overlay
     if ema_slow is not None:
@@ -114,36 +166,80 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
                 y=ema_slow_aligned,
                 mode='lines',
                 name=f'EMA {21}',
-                line=dict(color='purple', width=1.5)
-            ))
+                line=dict(color='#9C27B0', width=2)
+            ), row=1, col=1)
+    
+    # Volume bars
+    if 'Volume' in df_copy.columns:
+        colors = ['#26a69a' if df_copy.loc[idx, 'Close'] >= df_copy.loc[idx, 'Open'] else '#ef5350' 
+                 for idx in df_copy.index]
+        fig.add_trace(go.Bar(
+            x=df_copy.index,
+            y=df_copy['Volume'],
+            name='Volume',
+            marker_color=colors,
+            opacity=0.6,
+            showlegend=False
+        ), row=2, col=1)
+    
+    # Session markers (vertical lines)
+    if market_open and market_close:
+        session_times = [
+            (datetime.combine(chart_date, time(9, 30)).replace(tzinfo=et_tz), 'Market Open', '#00ff00'),
+            (datetime.combine(chart_date, time(12, 0)).replace(tzinfo=et_tz), 'Lunch Start', '#ffaa00'),
+            (datetime.combine(chart_date, time(13, 0)).replace(tzinfo=et_tz), 'Lunch End', '#ffaa00'),
+            (datetime.combine(chart_date, time(14, 30)).replace(tzinfo=et_tz), 'Power Hour', '#00ff88'),
+            (datetime.combine(chart_date, time(15, 30)).replace(tzinfo=et_tz), 'Trading End', '#ff0000'),
+        ]
+        
+        for session_time, label, color in session_times:
+            if market_open <= session_time <= market_close:
+                fig.add_vline(
+                    x=session_time,
+                    line_dash="dash",
+                    line_color=color,
+                    opacity=0.5,
+                    annotation_text=label,
+                    annotation_position="top",
+                    row=1, col=1
+                )
     
     # Update layout with ET timezone formatting
-    layout_updates = {
-        'title': 'SPY Intraday Chart',
-        'xaxis_title': 'Time (ET)',
-        'yaxis_title': 'Price',
-        'xaxis_rangeslider_visible': False,
-        'height': 600,
-        'hovermode': 'x unified',
-    }
+    fig.update_layout(
+        title='SPY Intraday Chart',
+        height=700,
+        hovermode='x unified',
+        template='plotly_dark',
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
     
-    # Configure x-axis with ET timezone and full trading day range
+    # Configure x-axis (shared between subplots)
     xaxis_config = {
         'tickformat': '%H:%M',
         'tickmode': 'linear',
-        'dtick': 3600000,  # 1 hour in milliseconds (for datetime)
+        'dtick': 3600000,  # 1 hour in milliseconds
         'showgrid': True,
         'tickangle': -45,
-        'ticklabelmode': 'period',
     }
     
     # Set x-axis range to show full trading day (9:00 AM - 5:00 PM ET)
     if market_open and market_close:
         xaxis_config['range'] = [market_open, market_close]
     
-    layout_updates['xaxis'] = xaxis_config
+    # Update both x-axes
+    fig.update_xaxes(**xaxis_config, row=1, col=1)
+    fig.update_xaxes(**xaxis_config, row=2, col=1)
     
-    fig.update_layout(**layout_updates)
+    # Update y-axes
+    fig.update_yaxes(title_text='Price ($)', row=1, col=1)
+    fig.update_yaxes(title_text='Volume', row=2, col=1)
     
     return fig
 

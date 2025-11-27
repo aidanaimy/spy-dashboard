@@ -601,7 +601,9 @@ def render_dashboard():
             intraday_df,
             vwap=intraday_analysis.get('vwap_series'),
             ema_fast=intraday_analysis.get('ema_fast_series'),
-            ema_slow=intraday_analysis.get('ema_slow_series')
+            ema_slow=intraday_analysis.get('ema_slow_series'),
+            current_price=intraday_analysis.get('price'),
+            signal_direction=signal.get('direction')
         )
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
