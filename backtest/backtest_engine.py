@@ -349,6 +349,12 @@ class BacktestEngine:
                             entry_option_price = current_position.get('entry_option_price', entry_price)
                             pnl_pct = (current_option_price - entry_option_price) / entry_option_price if entry_option_price > 0 else 0
                             
+                            # Debug: Print every bar when in position to see price progression
+                            if self.use_options and current_position is not None:
+                                print(f"DEBUG Options Check: Time={idx} ({time_str}), Underlying={current_price:.2f}, "
+                                      f"Option_Price={current_option_price:.4f}, PnL%={pnl_pct*100:.2f}%, "
+                                      f"T={T:.6f}, Strike={strike}")
+                            
                             exit_reason = None
                             if pnl_pct >= self.options_tp_pct:
                                 exit_reason = 'TP'
@@ -362,11 +368,10 @@ class BacktestEngine:
                                 equity += pnl
                                 
                                 # Debug: Print exit details for verification
-                                if exit_reason == 'SL':
-                                    print(f"DEBUG SL Exit: Time={idx}, Underlying={current_price:.2f}, "
-                                          f"Entry_Underlying={entry_underlying_price:.2f}, "
-                                          f"Option_Entry={entry_option_price:.4f}, Option_Exit={current_option_price:.4f}, "
-                                          f"Strike={strike}, T={T:.6f}, IV={sigma:.4f}")
+                                print(f"DEBUG {exit_reason} Exit: Time={idx} ({time_str}), Underlying={current_price:.2f}, "
+                                      f"Entry_Underlying={entry_underlying_price:.2f}, "
+                                      f"Option_Entry={entry_option_price:.4f}, Option_Exit={current_option_price:.4f}, "
+                                      f"Strike={strike}, T={T:.6f}, IV={sigma:.4f}, PnL%={pnl_pct*100:.2f}%")
                                 
                                 trades.append({
                                     'entry_time': current_position['entry_time'],
