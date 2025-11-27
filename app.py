@@ -752,7 +752,7 @@ def render_dashboard():
     iv_body_parts.append(summary_text)
 
     iv_body = "".join(iv_body_parts)
-    regime_cards.append(build_info_card("Volatility Context", "⚡", iv_body, "#a855f7"))
+    regime_cards.append(build_info_card("Volatility Context", "⚡", iv_body, "#8ea0bc"))
     
     st.markdown(f"<div class='card-strip'>{''.join(regime_cards)}</div>", unsafe_allow_html=True)
     
@@ -877,7 +877,7 @@ def render_dashboard():
     
     signal_cards = []
     signal_cards.append(build_info_card("Signal", "🎯", signal_body, direction_color))
-    signal_cards.append(build_info_card("Rationale Breakdown", "📋", rationale_body, "#2e7bff"))
+    signal_cards.append(build_info_card("Rationale Breakdown", "📋", rationale_body, "#8ea0bc"))
     
     st.markdown(f"<div class='card-strip two-columns'>{''.join(signal_cards)}</div>", unsafe_allow_html=True)
 
