@@ -534,10 +534,13 @@ def render_dashboard():
             # Filter to regular trading hours only (9:30 AM - 4:00 PM ET)
             # VWAP and EMAs should only use regular session data
             if not intraday_df.empty:
-                # Convert index to timezone-aware if needed
+                # Convert index to ET timezone if needed
+                # Data from alpaca_client is already timezone-aware in ET
                 if intraday_df.index.tz is None:
-                    intraday_df.index = pd.to_datetime(intraday_df.index).tz_localize('UTC').tz_convert(et_tz)
+                    # If somehow timezone-naive, assume it's ET and localize
+                    intraday_df.index = pd.to_datetime(intraday_df.index).tz_localize(et_tz)
                 elif intraday_df.index.tz != et_tz:
+                    # Convert from other timezone to ET
                     intraday_df.index = intraday_df.index.tz_convert(et_tz)
                 
                 # Filter to regular trading hours (9:30 AM - 4:00 PM ET)
@@ -573,9 +576,13 @@ def render_dashboard():
                 
                 # Filter fallback data to regular trading hours too
                 if not intraday_df.empty:
+                    # Convert index to ET timezone if needed
+                    # Data from alpaca_client is already timezone-aware in ET
                     if intraday_df.index.tz is None:
-                        intraday_df.index = pd.to_datetime(intraday_df.index).tz_localize('UTC').tz_convert(et_tz)
+                        # If somehow timezone-naive, assume it's ET and localize
+                        intraday_df.index = pd.to_datetime(intraday_df.index).tz_localize(et_tz)
                     elif intraday_df.index.tz != et_tz:
+                        # Convert from other timezone to ET
                         intraday_df.index = intraday_df.index.tz_convert(et_tz)
                     
                     market_open_time = time(9, 30)
@@ -607,9 +614,13 @@ def render_dashboard():
             
             if not yesterday_df.empty:
                 # Filter yesterday's data to regular trading hours
+                # Convert index to ET timezone if needed
+                # Data from alpaca_client is already timezone-aware in ET
                 if yesterday_df.index.tz is None:
-                    yesterday_df.index = pd.to_datetime(yesterday_df.index).tz_localize('UTC').tz_convert(et_tz)
+                    # If somehow timezone-naive, assume it's ET and localize
+                    yesterday_df.index = pd.to_datetime(yesterday_df.index).tz_localize(et_tz)
                 elif yesterday_df.index.tz != et_tz:
+                    # Convert from other timezone to ET
                     yesterday_df.index = yesterday_df.index.tz_convert(et_tz)
                 
                 market_open_time = time(9, 30)
