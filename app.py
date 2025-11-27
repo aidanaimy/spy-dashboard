@@ -111,14 +111,24 @@ st.markdown(
         }
 
         .card-strip {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
             gap: 1rem;
-            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1400px) {
+            .card-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 700px) {
+            .card-strip {
+                grid-template-columns: 1fr;
+            }
         }
 
         .info-card {
-            flex: 1 1 0;
-            min-width: 280px;
             background: var(--panel-light);
             border-radius: 12px;
             padding: 1.25rem;
@@ -130,6 +140,7 @@ st.markdown(
             justify-content: space-between;
             height: 100%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
         }
 
         .stats-panel {
