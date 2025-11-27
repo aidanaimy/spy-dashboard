@@ -87,8 +87,10 @@ def check_ema_flat(ema_fast: pd.Series, ema_slow: pd.Series, lookback: int = 12)
     recent_slow = ema_slow.tail(lookback)
     
     # Calculate slope (change over lookback period)
-    fast_slope = abs((recent_fast.iloc[-1] - recent_fast.iloc[0]) / recent_fast.iloc[0])
-    slow_slope = abs((recent_slow.iloc[-1] - recent_slow.iloc[0]) / recent_slow.iloc[0])
+    fast_start = recent_fast.iloc[0]
+    slow_start = recent_slow.iloc[0]
+    fast_slope = abs((recent_fast.iloc[-1] - fast_start) / fast_start) if fast_start > 0 else 0
+    slow_slope = abs((recent_slow.iloc[-1] - slow_start) / slow_start) if slow_start > 0 else 0
     
     # If both slopes are below threshold, EMAs are flat
     return fast_slope < config.CHOP_EMA_FLAT_THRESHOLD and slow_slope < config.CHOP_EMA_FLAT_THRESHOLD
@@ -158,7 +160,7 @@ def detect_chop(df: pd.DataFrame, vwap: pd.Series, ema_fast: pd.Series,
     # 3. Check ATR (low ATR = low volatility = chop)
     atr = calculate_atr(df, period=14)
     current_price = df['Close'].iloc[-1]
-    atr_pct = (atr / current_price) if current_price > 0 else 0
+    atr_pct = (atr / current_price) if (current_price > 0 and pd.notna(atr) and atr > 0) else 0
     
     if atr_pct < config.CHOP_ATR_THRESHOLD:
         reasons.append(f"Low ATR ({atr_pct*100:.2f}% < {config.CHOP_ATR_THRESHOLD*100:.2f}%)")
