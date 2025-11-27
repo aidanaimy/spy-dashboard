@@ -106,7 +106,8 @@ def fetch_historical_vix_context(target_date: datetime, lookback_days: int = 252
                 closest_date = max(valid_dates)
                 date_idx = hist_dates.index(closest_date) if closest_date in hist_dates else -1
                 if date_idx >= 0:
-                    vix_level = float(hist['Close'].iloc[date_idx])
+                    # Use OPEN price to avoid look-ahead bias
+                    vix_level = float(hist['Open'].iloc[date_idx])
             
             # Calculate rank and percentile from lookback period ending at target_date
             if vix_level is not None:
@@ -125,7 +126,7 @@ def fetch_historical_vix_context(target_date: datetime, lookback_days: int = 252
         vix_percentile = None
     
     return {
-        'atm_iv': None,  # Historical ATM IV not easily available
+        'atm_iv': vix_level,  # Use VIX as proxy for ATM IV in backtest
         'expiry': None,
         'vix_level': vix_level,
         'vix_rank': vix_rank,
