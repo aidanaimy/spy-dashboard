@@ -384,7 +384,7 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
 
 
 def main():
-    st.title("📈 SPY Small-DTE Trading Dashboard")
+    st.title("📈 SPY Trading Dashboard")
     
     # Auto-refresh control in sidebar
     with st.sidebar:
@@ -410,7 +410,21 @@ def main():
     
     refresh_counter = 0
     if st.session_state.auto_refresh:
-        refresh_counter = st_autorefresh(interval=config.AUTO_REFRESH_INTERVAL, key="data_refresh")
+        # Initialize last_refresh_counter if not exists
+        if "last_refresh_counter" not in st.session_state:
+            st.session_state.last_refresh_counter = -1
+        
+        # st_autorefresh runs indefinitely as long as:
+        # 1. Streamlit app is running
+        # 2. Browser tab is open and active
+        # 3. No network disconnections
+        # It will continue every 30 seconds without timeout/expiration
+        refresh_counter = st_autorefresh(
+            interval=config.AUTO_REFRESH_INTERVAL, 
+            key="data_refresh",
+            limit=None  # No limit - runs indefinitely
+        )
+        
         last_counter = st.session_state.get("last_refresh_counter", -1)
         if refresh_counter > last_counter:
             # Force cache invalidation to ensure fresh data
@@ -418,6 +432,7 @@ def main():
             get_cached_daily_data.clear()
             get_cached_iv_context.clear()
             st.session_state.last_refresh_counter = refresh_counter
+            st.session_state.last_update = datetime.now()
     
     st.markdown("---")
     
