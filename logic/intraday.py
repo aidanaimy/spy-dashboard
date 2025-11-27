@@ -11,14 +11,20 @@ import config
 def calculate_vwap(df: pd.DataFrame) -> pd.Series:
     """
     Calculate Volume Weighted Average Price (VWAP).
+    VWAP resets each trading day (calculated from market open to close).
     
     Args:
-        df: Intraday OHLCV dataframe with Volume column
+        df: Intraday OHLCV dataframe with Volume column (should only contain regular trading hours: 9:30 AM - 4:00 PM ET)
         
     Returns:
         Series with VWAP values
     """
+    if df.empty or 'Volume' not in df.columns:
+        return pd.Series(dtype=float, index=df.index)
+    
     typical_price = (df['High'] + df['Low'] + df['Close']) / 3
+    # VWAP = cumulative (price * volume) / cumulative volume
+    # This resets each day since we filter to single-day data
     vwap = (typical_price * df['Volume']).cumsum() / df['Volume'].cumsum()
     return vwap
 

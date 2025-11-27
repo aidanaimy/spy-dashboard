@@ -464,6 +464,31 @@ def render_dashboard():
             today = datetime.now(et_tz).date()
             intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
             
+            # Filter to regular trading hours only (9:30 AM - 4:00 PM ET)
+            # VWAP and EMAs should only use regular session data
+            if not intraday_df.empty:
+                # Convert index to timezone-aware if needed
+                if intraday_df.index.tz is None:
+                    intraday_df.index = pd.to_datetime(intraday_df.index).tz_localize('UTC').tz_convert(et_tz)
+                elif intraday_df.index.tz != et_tz:
+                    intraday_df.index = intraday_df.index.tz_convert(et_tz)
+                
+                # Filter to regular trading hours (9:30 AM - 4:00 PM ET)
+                market_open_time = time(9, 30)
+                market_close_time = time(16, 0)
+                
+                # Get time component of index
+                intraday_df['time_only'] = intraday_df.index.time
+                
+                # Filter to regular hours only
+                intraday_df = intraday_df[
+                    (intraday_df['time_only'] >= market_open_time) & 
+                    (intraday_df['time_only'] <= market_close_time)
+                ].copy()
+                
+                # Drop the temporary time column
+                intraday_df = intraday_df.drop(columns=['time_only'], errors='ignore')
+            
             # Debug: show latest bar timestamp and date
             if not intraday_raw.empty:
                 latest_bar_time = intraday_raw.index[-1]
@@ -477,7 +502,24 @@ def render_dashboard():
             if intraday_df.empty:
                 # Fallback: use last available session so dashboard still renders
                 last_available_date = intraday_raw.index[-1].date()
-                intraday_df = intraday_raw[intraday_raw.index.date == last_available_date]
+                intraday_df = intraday_raw[intraday_raw.index.date == last_available_date].copy()
+                
+                # Filter fallback data to regular trading hours too
+                if not intraday_df.empty:
+                    if intraday_df.index.tz is None:
+                        intraday_df.index = pd.to_datetime(intraday_df.index).tz_localize('UTC').tz_convert(et_tz)
+                    elif intraday_df.index.tz != et_tz:
+                        intraday_df.index = intraday_df.index.tz_convert(et_tz)
+                    
+                    market_open_time = time(9, 30)
+                    market_close_time = time(16, 0)
+                    intraday_df['time_only'] = intraday_df.index.time
+                    intraday_df = intraday_df[
+                        (intraday_df['time_only'] >= market_open_time) & 
+                        (intraday_df['time_only'] <= market_close_time)
+                    ].copy()
+                    intraday_df = intraday_df.drop(columns=['time_only'], errors='ignore')
+                
                 st.info(f"No intraday data for today yet. Showing last available session ({last_available_date}).")
                 if intraday_df.empty:
                     st.warning("No intraday data available.")
