@@ -426,47 +426,28 @@ def render_dashboard():
             # Use cached functions
             daily_df = get_cached_daily_data(config.SYMBOL, config.DAILY_LOOKBACK_DAYS)
             
-            # Explicitly request today's data with proper timezone
-            et_tz = ZoneInfo("America/New_York")
-            now_et = datetime.now(et_tz)
-            today_start = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-            
-            # Try to get today's data first
-            try:
-                intraday_df = get_cached_intraday_data(
-                    config.SYMBOL, 
-                    config.INTRADAY_INTERVAL,
-                    start_date=today_start,
-                    end_date=now_et
-                )
-                # If empty, fall back to last 2 days to get yesterday's data
-                if intraday_df.empty:
-                    raise ValueError("No data for today yet")
-            except (ValueError, Exception):
-                # Fallback: get last 2 days of data (will include yesterday)
-                intraday_df = get_cached_intraday_data(
-                    config.SYMBOL,
-                    config.INTRADAY_INTERVAL,
-                    days=2
-                )
+            # Request last 2 days to ensure we get today's data if available
+            intraday_raw = get_cached_intraday_data(
+                config.SYMBOL,
+                config.INTRADAY_INTERVAL,
+                days=2
+            )
             
             # Update last refresh time
             st.session_state.last_update = datetime.now()
             
-            # Debug: show latest bar timestamp and date
-            if not intraday_df.empty:
-                latest_bar_time = intraday_df.index[-1]
-                latest_bar_date = latest_bar_time.date()
-                today = datetime.now(ZoneInfo('America/New_York')).date()
-                current_time = datetime.now(ZoneInfo('America/New_York'))
-                st.caption(f"Latest bar: {latest_bar_time.strftime('%Y-%m-%d %H:%M:%S ET')} | Today: {today} | Current: {current_time.strftime('%H:%M:%S ET')}")
-            
             # Filter to today only
-            intraday_raw = intraday_df.copy()
             intraday_raw.index = pd.to_datetime(intraday_raw.index)
-            intraday_df.index = pd.to_datetime(intraday_df.index)
-            today = datetime.now().date()
-            intraday_df = intraday_df[intraday_df.index.date == today]
+            et_tz = ZoneInfo("America/New_York")
+            today = datetime.now(et_tz).date()
+            intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
+            
+            # Debug: show latest bar timestamp and date
+            if not intraday_raw.empty:
+                latest_bar_time = intraday_raw.index[-1]
+                latest_bar_date = latest_bar_time.date()
+                current_time = datetime.now(et_tz)
+                st.caption(f"Latest bar: {latest_bar_time.strftime('%Y-%m-%d %H:%M:%S ET')} | Today: {today} | Current: {current_time.strftime('%H:%M:%S ET')} | Today's bars: {len(intraday_df)}")
             
             if intraday_df.empty:
                 # Fallback: use last available session so dashboard still renders
