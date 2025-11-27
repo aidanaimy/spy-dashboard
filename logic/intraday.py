@@ -147,8 +147,8 @@ def analyze_intraday(df: pd.DataFrame, previous_ema_fast: Optional[float] = None
     
     # Calculate indicators
     vwap = calculate_vwap(df_sorted)  # VWAP resets each day
-    ema_fast = calculate_ema(df_sorted, config.EMA_FAST, previous_ema_fast)  # EMA carries over
-    ema_slow = calculate_ema(df_sorted, config.EMA_SLOW, previous_ema_slow)  # EMA carries over
+    ema_fast = calculate_ema(df_sorted, config.EMA_FAST, previous_ema=previous_ema_fast)  # EMA carries over
+    ema_slow = calculate_ema(df_sorted, config.EMA_SLOW, previous_ema=previous_ema_slow)  # EMA carries over
     
     # Get latest values
     latest_idx = df_sorted.index[-1]
