@@ -97,14 +97,29 @@ def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBAC
         start_str = start_date.strftime('%Y-%m-%d')
         end_str = end_date.strftime('%Y-%m-%d')
         
-        bar_set = api_client.get_bars(
-            symbol,
-            '1Day',
-            start=start_str,
-            end=end_str,
-            feed='iex',
-            adjustment='raw'
-        )
+        # Try SIP first (if available), fall back to IEX
+        bar_set = None
+        try:
+            bar_set = api_client.get_bars(
+                symbol,
+                '1Day',
+                start=start_str,
+                end=end_str,
+                adjustment='raw'
+            )
+        except Exception:
+            # Fallback to IEX if default fails
+            try:
+                bar_set = api_client.get_bars(
+                    symbol,
+                    '1Day',
+                    start=start_str,
+                    end=end_str,
+                    feed='iex',
+                    adjustment='raw'
+                )
+            except Exception as e:
+                raise Exception(f"Failed to fetch daily data: {str(e)}")
         
         # Convert to DataFrame
         bars = bar_set.df
@@ -193,14 +208,29 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
         start_str = fetch_start_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
         end_str = fetch_end_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        bar_set = api_client.get_bars(
-            symbol,
-            alpaca_interval,
-            start=start_str,
-            end=end_str,
-            feed='iex',
-            adjustment='raw'
-        )
+        # Try SIP first (if available), fall back to IEX
+        bar_set = None
+        try:
+            bar_set = api_client.get_bars(
+                symbol,
+                alpaca_interval,
+                start=start_str,
+                end=end_str,
+                adjustment='raw'
+            )
+        except Exception:
+            # Fallback to IEX if default fails
+            try:
+                bar_set = api_client.get_bars(
+                    symbol,
+                    alpaca_interval,
+                    start=start_str,
+                    end=end_str,
+                    feed='iex',
+                    adjustment='raw'
+                )
+            except Exception as e:
+                raise Exception(f"Failed to fetch intraday data: {str(e)}")
         
         # Convert to DataFrame
         bars = bar_set.df
