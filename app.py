@@ -270,17 +270,23 @@ def send_discord_notification(message: str) -> None:
         print(f"Discord notification failed: {exc}")
 
 
+@st.cache_resource
+def get_signal_cache() -> Dict[str, Optional[str]]:
+    return {"snapshot": None}
+
+
 def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict, iv_context: Dict, current_time: datetime) -> None:
     """Send Discord alert when signal direction/confidence changes."""
     direction = signal.get("direction", "NONE")
     confidence = signal.get("confidence", "LOW")
     snapshot = f"{direction}:{confidence}"
 
-    last_snapshot = st.session_state.get("last_signal_snapshot")
+    cache = get_signal_cache()
+    last_snapshot = cache.get("snapshot")
     if snapshot == last_snapshot:
         return
 
-    st.session_state["last_signal_snapshot"] = snapshot
+    cache["snapshot"] = snapshot
 
     timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S ET")
     reason = signal.get("reason", "")
