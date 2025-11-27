@@ -93,6 +93,11 @@ class BacktestEngine:
         current_position = None  # {'direction': 'LONG'/'SHORT', 'entry_price': float, 'entry_time': datetime}
         equity = 10000.0  # Starting equity
         
+        # Debug counters
+        days_processed = 0
+        days_skipped = 0
+        signals_generated = 0
+        
         for day in trading_days:
             try:
                 # Get intraday data for this specific day
@@ -115,6 +120,7 @@ class BacktestEngine:
                         intraday_df = intraday_df[intraday_df.index.date == day.date()]
                 except Exception as e:
                     # If intraday not available for this day, skip it
+                    days_skipped += 1
                     continue
                 
                 if intraday_df.empty:
@@ -502,8 +508,13 @@ class BacktestEngine:
                     current_position = None
                     
             except Exception as e:
+                import traceback
                 print(f"Error processing {day}: {str(e)}")
+                traceback.print_exc()
+                days_skipped += 1
                 continue
+            
+            days_processed += 1
         
         # Calculate metrics
         if not trades:

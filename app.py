@@ -1126,6 +1126,17 @@ def render_backtest():
         mode_text = "Options Mode (Black-Scholes)" if use_options_mode else "Shares Mode"
         st.info(f"📅 Backtest Period: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date} | Mode: {mode_text}")
         
+        # Show debug info if available
+        if 'debug_info' in results:
+            debug = results['debug_info']
+            with st.expander("🔍 Debug Information"):
+                st.write(f"**Days Processed:** {debug.get('days_processed', 0)}")
+                st.write(f"**Days Skipped:** {debug.get('days_skipped', 0)}")
+                st.write(f"**Total Trading Days:** {debug.get('trading_days_total', 0)}")
+                st.write(f"**Signals Generated:** {debug.get('signals_generated', 0)}")
+                if debug.get('days_skipped', 0) > 0:
+                    st.warning(f"⚠️ {debug['days_skipped']} days were skipped (likely no intraday data available)")
+        
         # Display results
         st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)
         st.subheader("Backtest Results")
