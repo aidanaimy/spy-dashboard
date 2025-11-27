@@ -60,11 +60,31 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
         name='SPY'
     ))
     
+    # Helper function to convert series index to ET and align with df_copy
+    def align_series(series, target_index):
+        if series is None or len(series) == 0:
+            return None
+        try:
+            # Convert series index to ET timezone if needed
+            series_copy = series.copy()
+            if series_copy.index.tz is None:
+                series_copy.index = pd.to_datetime(series_copy.index).tz_localize('UTC').tz_convert(et_tz)
+            elif series_copy.index.tz != et_tz:
+                series_copy.index = series_copy.index.tz_convert(et_tz)
+            
+            # Align with target index using nearest match
+            aligned = series_copy.reindex(target_index, method='ffill')
+            return aligned
+        except Exception:
+            # If alignment fails, try to match by position if lengths are similar
+            if len(series) == len(target_index):
+                return pd.Series(series.values, index=target_index)
+            return None
+    
     # VWAP overlay
     if vwap is not None:
-        # Ensure VWAP index matches df_copy index
-        vwap_aligned = vwap.reindex(df_copy.index, method='ffill') if len(vwap) > 0 else None
-        if vwap_aligned is not None:
+        vwap_aligned = align_series(vwap, df_copy.index)
+        if vwap_aligned is not None and not vwap_aligned.isna().all():
             fig.add_trace(go.Scatter(
                 x=df_copy.index,
                 y=vwap_aligned,
@@ -75,8 +95,8 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     
     # Fast EMA overlay
     if ema_fast is not None:
-        ema_fast_aligned = ema_fast.reindex(df_copy.index, method='ffill') if len(ema_fast) > 0 else None
-        if ema_fast_aligned is not None:
+        ema_fast_aligned = align_series(ema_fast, df_copy.index)
+        if ema_fast_aligned is not None and not ema_fast_aligned.isna().all():
             fig.add_trace(go.Scatter(
                 x=df_copy.index,
                 y=ema_fast_aligned,
@@ -87,8 +107,8 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     
     # Slow EMA overlay
     if ema_slow is not None:
-        ema_slow_aligned = ema_slow.reindex(df_copy.index, method='ffill') if len(ema_slow) > 0 else None
-        if ema_slow_aligned is not None:
+        ema_slow_aligned = align_series(ema_slow, df_copy.index)
+        if ema_slow_aligned is not None and not ema_slow_aligned.isna().all():
             fig.add_trace(go.Scatter(
                 x=df_copy.index,
                 y=ema_slow_aligned,
