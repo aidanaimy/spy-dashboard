@@ -621,11 +621,32 @@ def render_dashboard():
     dist_from_20d = ((regime['latest_close'] - regime['ma_short']) / regime['ma_short']) * 100
     dist_from_50d = ((regime['latest_close'] - regime['ma_long']) / regime['ma_long']) * 100 if regime['ma_long'] > 0 else 0
     
-    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f}</div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div><div class="metric-card"><div class="label">Above 20D</div><div class="value">{dist_from_20d:+.2f}%</div></div></div>"""
+    # Generate trend summary
+    def describe_trend(trend, dist_20d, dist_50d):
+        if trend == "Bullish":
+            strength = "strong" if dist_20d > 2 else "moderate" if dist_20d > 0.5 else "weak"
+            return f"<p><strong>Bullish trend:</strong> SPY trading {strength}ly above key moving averages. Price momentum favors upside continuation.</p>"
+        elif trend == "Bearish":
+            strength = "strong" if dist_20d < -2 else "moderate" if dist_20d < -0.5 else "weak"
+            return f"<p><strong>Bearish trend:</strong> SPY trading {strength}ly below key moving averages. Price momentum favors downside continuation.</p>"
+        else:
+            return f"<p><strong>Mixed trend:</strong> SPY trading between key moving averages. Direction unclear; wait for clearer signal.</p>"
+    
+    trend_summary = describe_trend(regime['trend'], dist_from_20d, dist_from_50d)
+    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f}</div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div><div class="metric-card"><div class="label">Above 20D</div><div class="value">{dist_from_20d:+.2f}%</div></div></div>{trend_summary}"""
     regime_cards.append(build_info_card("Trend Bias", "📊", trend_body, trend_color))
     
     gap_sign = "+" if regime['gap'] > 0 else ""
-    gap_body = f"""<div><div class="primary-value">{gap_sign}{regime['gap_pct']:.2f}% Gap</div><p>Range Class: {regime['range_class']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Gap ($)</div><div class="value">${regime['gap']:.2f}</div></div><div class="metric-card"><div class="label">Range %</div><div class="value">{regime['range_pct']:.2f}%</div></div><div class="metric-card" style="grid-column: span 2;"><div class="label">Session Low/High</div><div class="value">${today_data['today_low']:.2f} / ${regime['range'] + today_data['today_low']:.2f}</div></div></div>"""
+    
+    # Generate gap & range summary
+    def describe_gap_range(gap_pct, range_pct, range_class):
+        gap_desc = "gapped up" if gap_pct > 0 else "gapped down" if gap_pct < 0 else "opened flat"
+        gap_magnitude = "significantly" if abs(gap_pct) > 0.5 else "moderately" if abs(gap_pct) > 0.2 else "slightly"
+        range_desc = "wide" if range_class == "High" else "narrow" if range_class == "Low" else "normal"
+        return f"<p><strong>Session context:</strong> Market {gap_desc} {gap_magnitude} at open. Trading in a {range_desc} range, indicating {'high volatility' if range_class == 'High' else 'low volatility' if range_class == 'Low' else 'normal volatility'}.</p>"
+    
+    gap_summary = describe_gap_range(regime['gap_pct'], regime['range_pct'], regime['range_class'])
+    gap_body = f"""<div><div class="primary-value">{gap_sign}{regime['gap_pct']:.2f}% Gap</div><p>Range Class: {regime['range_class']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Gap ($)</div><div class="value">${regime['gap']:.2f}</div></div><div class="metric-card"><div class="label">Range %</div><div class="value">{regime['range_pct']:.2f}%</div></div><div class="metric-card" style="grid-column: span 2;"><div class="label">Session Low/High</div><div class="value">${today_data['today_low']:.2f} / ${regime['range'] + today_data['today_low']:.2f}</div></div></div>{gap_summary}"""
     regime_cards.append(build_info_card("Gap &amp; Range", "📏", gap_body, "#2e7bff"))
     
     status = regime['0dte_status']
@@ -633,7 +654,18 @@ def render_dashboard():
     
     # Add context metrics for 0DTE Permission
     gap_abs = abs(regime['gap_pct'])
-    permission_body = f"""<div><div class="permission-bar" style="background:{status_color}; font-size:1.4rem; padding:1.5rem;">{status}</div><p style="text-align:center; margin-bottom:1rem;">{regime['0dte_reason']}</p><div class="metric-grid"><div class="metric-card"><div class="label">Gap Size</div><div class="value">{gap_abs:.2f}%</div></div><div class="metric-card"><div class="label">Range</div><div class="value">{regime['range_pct']:.2f}%</div></div></div></div>"""
+    
+    # Generate 0DTE permission summary
+    def describe_0dte_permission(status, gap_abs, range_pct):
+        if status == "GREEN":
+            return f"<p><strong>0DTE outlook:</strong> High volatility day with {range_pct:.2f}% range. Directional 0DTE trades have favorable conditions; expect larger moves and clearer trends.</p>"
+        elif status == "RED":
+            return f"<p><strong>0DTE outlook:</strong> Small gap ({gap_abs:.2f}%) and low range ({range_pct:.2f}%) suggest choppy conditions. Avoid aggressive 0DTE directional trades; consider neutral strategies or wait for clearer setup.</p>"
+        else:
+            return f"<p><strong>0DTE outlook:</strong> Mixed conditions with {gap_abs:.2f}% gap and {range_pct:.2f}% range. Use caution with 0DTE trades; wait for confirmation before taking directional positions.</p>"
+    
+    permission_summary = describe_0dte_permission(status, gap_abs, regime['range_pct'])
+    permission_body = f"""<div><div class="permission-bar" style="background:{status_color}; font-size:1.4rem; padding:1.5rem;">{status}</div><p style="text-align:center; margin-bottom:1rem;">{regime['0dte_reason']}</p><div class="metric-grid"><div class="metric-card"><div class="label">Gap Size</div><div class="value">{gap_abs:.2f}%</div></div><div class="metric-card"><div class="label">Range</div><div class="value">{regime['range_pct']:.2f}%</div></div></div>{permission_summary}</div>"""
     regime_cards.append(build_info_card("0DTE Permission", "🚦", permission_body, status_color))
 
     # IV context card
