@@ -14,7 +14,8 @@ if TYPE_CHECKING:
 
 def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
                     intraday_df: 'pd.DataFrame' = None,
-                    iv_context: Optional[Dict] = None) -> Dict[str, str]:
+                    iv_context: Optional[Dict] = None,
+                    market_phase: Optional[Dict] = None) -> Dict[str, str]:
     """
     Generate trading bias signal based on regime and intraday conditions.
     Now includes time-of-day filtering and chop detection.
@@ -113,11 +114,11 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     if current_time is not None:
         base_signal = apply_time_filter(base_signal, current_time)
     
-    base_signal = apply_environment_filters(base_signal, regime, iv_context)
+    base_signal = apply_environment_filters(base_signal, regime, iv_context, market_phase)
     return base_signal
 
 
-def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[Dict]) -> Dict:
+def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[Dict], market_phase: Optional[Dict]) -> Dict:
     """
     Adjust signal confidence based on regime permission and IV context.
     """
@@ -135,6 +136,14 @@ def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[D
     elif permission == 'GREEN' and confidence == 'MEDIUM':
         confidence = 'HIGH'
         reason = f"{reason}; 0DTE GREEN (volatile)"
+
+    if market_phase:
+        if not market_phase.get('is_open', False) and direction != 'NONE':
+            return {
+                'direction': 'NONE',
+                'confidence': 'LOW',
+                'reason': f"{reason}; Session {market_phase.get('label')} - signals paused"
+            }
 
     if iv_context:
         atm_iv = iv_context.get('atm_iv')

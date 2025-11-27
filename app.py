@@ -5,6 +5,7 @@ Main Streamlit app for SPY small-DTE trading dashboard.
 import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -309,6 +310,27 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict, iv
     send_discord_notification(message)
 
 
+def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
+    """Return session label and whether regular trading is active."""
+    et_time = current_time.astimezone(ZoneInfo("America/New_York"))
+    minutes = et_time.hour * 60 + et_time.minute
+
+    def within(start_h, start_m, end_h, end_m):
+        return (start_h * 60 + start_m) <= minutes < (end_h * 60 + end_m)
+
+    if minutes < 9 * 60 + 30:
+        return {"label": "Pre-Market", "is_open": False}
+    if within(9, 30, 11, 0):
+        return {"label": "Open Drive", "is_open": True}
+    if within(11, 0, 13, 30):
+        return {"label": "Midday", "is_open": True}
+    if within(13, 30, 14, 30):
+        return {"label": "Afternoon Drift", "is_open": True}
+    if within(14, 30, 16, 0):
+        return {"label": "Power Hour", "is_open": True}
+    return {"label": "After Hours", "is_open": False}
+
+
 def main():
     st.title("📈 SPY Small-DTE Trading Dashboard")
     
@@ -413,13 +435,16 @@ def render_dashboard():
             intraday_analysis = analyze_intraday(intraday_df)
             
             # Generate signal (with time filtering and chop detection)
-            current_time = datetime.now()
+            current_time = datetime.now(ZoneInfo("America/New_York"))
+            market_phase = get_market_phase(current_time)
+
             signal = generate_signal(
                 regime, 
                 intraday_analysis, 
                 current_time=current_time,
                 intraday_df=intraday_df,
-                iv_context=iv_context
+                iv_context=iv_context,
+                market_phase=market_phase
             )
 
             maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time)
@@ -576,6 +601,8 @@ def render_dashboard():
     
     col_signal1, col_signal2 = st.columns([1.2, 2], gap="large")
     
+    session_label = market_phase.get("label", "Unknown") if 'market_phase' in locals() else "Unknown"
+
     with col_signal1:
         st.markdown(
             f"""
@@ -587,6 +614,7 @@ def render_dashboard():
                 <div class="confidence-badge" style="{confidence_class(signal_confidence)}">
                     Confidence: {signal_confidence}
                 </div>
+                <p style="margin-top:1rem; color: var(--text-secondary); font-size:0.85rem;">Session: {session_label}</p>
             </div>
             """,
             unsafe_allow_html=True
