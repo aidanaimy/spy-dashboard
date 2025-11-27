@@ -19,10 +19,16 @@ try:
     from data.alpaca_client import get_daily_data, get_intraday_data, get_today_data
 except (ImportError, AttributeError):
     from data.yfinance_client import get_daily_data, get_intraday_data, get_today_data
-from logic.regime import analyze_regime
-from logic.intraday import analyze_intraday
-from logic.signals import generate_signal
-from logic.iv import fetch_iv_context
+
+# Import logic modules
+try:
+    from logic.regime import analyze_regime
+    from logic.intraday import analyze_intraday
+    from logic.signals import generate_signal
+    from logic.iv import fetch_iv_context
+except ImportError as e:
+    st.error(f"Error importing logic modules: {e}")
+    raise
 from utils.plots import plot_intraday_candlestick, plot_equity_curve
 from utils.journal import (
     load_journal, save_trade, get_today_trades, get_journal_stats, delete_trade
