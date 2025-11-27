@@ -429,13 +429,25 @@ def render_dashboard():
             et_tz = ZoneInfo("America/New_York")
             now_et = datetime.now(et_tz)
             today_start = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-            # Request from market open today to now (use cached function)
-            intraday_df = get_cached_intraday_data(
-                config.SYMBOL, 
-                config.INTRADAY_INTERVAL,
-                start_date=today_start,
-                end_date=now_et
-            )
+            
+            # Try to get today's data first
+            try:
+                intraday_df = get_cached_intraday_data(
+                    config.SYMBOL, 
+                    config.INTRADAY_INTERVAL,
+                    start_date=today_start,
+                    end_date=now_et
+                )
+                # If empty, fall back to last 2 days to get yesterday's data
+                if intraday_df.empty:
+                    raise ValueError("No data for today yet")
+            except (ValueError, Exception):
+                # Fallback: get last 2 days of data (will include yesterday)
+                intraday_df = get_cached_intraday_data(
+                    config.SYMBOL,
+                    config.INTRADAY_INTERVAL,
+                    days=2
+                )
             
             # Update last refresh time
             st.session_state.last_update = datetime.now()

@@ -195,8 +195,9 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
         # Convert to DataFrame
         bars = bar_set.df
         
+        # Return empty DataFrame if no data (caller will handle fallback)
         if bars.empty:
-            raise ValueError(f"No intraday data returned for {symbol}")
+            return pd.DataFrame()
         
         # Rename columns to match expected format (Alpaca uses lowercase)
         if 'open' in bars.columns:
