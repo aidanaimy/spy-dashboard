@@ -1020,5 +1020,7 @@ def render_backtest():
 
 
 if __name__ == "__main__":
+    # Temporary check to confirm secrets available
+    st.write("Google sheet secrets loaded:", "gcp_service_account" in st.secrets, st.secrets.get("GOOGLE_SHEET_NAME"))
     main()
 
