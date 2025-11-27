@@ -682,7 +682,7 @@ def render_dashboard():
     
     gap_summary = describe_gap_range(regime['gap_pct'], regime['range_pct'], regime['range_class'])
     gap_body = f"""<div><div class="primary-value">{gap_sign}{regime['gap_pct']:.2f}% Gap</div><p>Range Class: {regime['range_class']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Gap ($)</div><div class="value">${regime['gap']:.2f}</div></div><div class="metric-card"><div class="label">Range %</div><div class="value">{regime['range_pct']:.2f}%</div></div><div class="metric-card" style="grid-column: span 2;"><div class="label">Session Low/High</div><div class="value">${today_data['today_low']:.2f} / ${regime['range'] + today_data['today_low']:.2f}</div></div></div>{gap_summary}"""
-    regime_cards.append(build_info_card("Gap &amp; Range", "📏", gap_body, "#2e7bff"))
+    regime_cards.append(build_info_card("Gap &amp; Range", "📏", gap_body, "#8ea0bc"))
     
     status = regime['0dte_status']
     status_color = get_status_color(status)
@@ -778,7 +778,7 @@ def render_dashboard():
     with col_right:
         # Build the entire stats panel HTML in one go to ensure proper nesting
         stats_html = []
-        stats_html.append("<div class='stats-panel' style='border-top: 4px solid #;'>")
+        stats_html.append("<div class='stats-panel' style='border-top: 4px solid #8ea0bc;'>")
         
         # Overview Group
         stats_html.append("<div class='stats-group'><h5>Overview</h5>")
