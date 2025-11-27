@@ -262,15 +262,23 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
         'dtick': 3600000,  # 1 hour in milliseconds
         'showgrid': True,
         'tickangle': -45,
+        'rangeslider': {'visible': False},  # Disable range slider
+        'rangeselector': {'visible': False},  # Disable range selector
     }
     
     # Set x-axis range to show full trading day (9:00 AM - 5:00 PM ET)
     if market_open and market_close:
         xaxis_config['range'] = [market_open, market_close]
     
-    # Update both x-axes
+    # Update both x-axes - disable interaction on volume chart
     fig.update_xaxes(**xaxis_config, row=1, col=1)
-    fig.update_xaxes(**xaxis_config, row=2, col=1)
+    volume_xaxis_config = xaxis_config.copy()
+    volume_xaxis_config.update({
+        'rangeslider': {'visible': False},
+        'rangeselector': {'visible': False},
+        'fixedrange': True  # Disable zoom/pan on volume chart
+    })
+    fig.update_xaxes(**volume_xaxis_config, row=2, col=1)
     
     # Update y-axes - ensure they're completely separate
     # Set explicit y-axis references to prevent trace duplication
