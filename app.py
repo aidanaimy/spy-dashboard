@@ -190,6 +190,12 @@ st.markdown(
             grid-template-columns: 1fr 1fr;
             gap: 0.75rem;
             margin-top: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+        
+        .info-card p:last-child {
+            margin-top: 1.25rem;
+            margin-bottom: 0;
         }
 
         .metric-card {
