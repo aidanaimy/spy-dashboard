@@ -239,7 +239,7 @@ class BacktestEngine:
                             print(f"DEBUG 14:55 Bar: idx={idx}, time_str={time_str}, Close={current_price:.2f}, "
                                   f"High={row.get('High', 'N/A')}, Low={row.get('Low', 'N/A')}, Open={row.get('Open', 'N/A')}")
                         
-                        # Block entries at and after BLOCK_TRADE_AFTER time (15:30)
+                        # Block entries at and after BLOCK_TRADE_AFTER time (14:30)
                         # But continue processing exits until market close (16:00)
                         if time_str >= config.BLOCK_TRADE_AFTER:
                             # Still process exits, but no new entries

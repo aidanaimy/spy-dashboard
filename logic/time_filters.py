@@ -55,11 +55,11 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
         }
     
     # Check if too close to market close - block trades
-    if time_str > config.BLOCK_TRADE_AFTER:
+    if time_str >= config.BLOCK_TRADE_AFTER:
         return {
             'allow_trade': False,
             'confidence_multiplier': 0.0,
-            'reason': f'Too close to market close (after {config.BLOCK_TRADE_AFTER}) - avoid late-day trades'
+            'reason': f'Too close to market close (at/after {config.BLOCK_TRADE_AFTER}) - avoid late-day trades'
         }
     
     # Check if in power hour (2:30-3:30) - increase confidence
