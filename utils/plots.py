@@ -33,10 +33,11 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     et_tz = ZoneInfo("America/New_York")
     df_copy = df.copy()
     
-    # Convert index to ET if it's timezone-naive or in a different timezone
+    # Convert index to ET if needed
+    # Note: Data from alpaca_client is already in ET (timezone-naive), so treat naive as ET
     if df_copy.index.tz is None:
-        # Assume UTC if naive, convert to ET
-        df_copy.index = pd.to_datetime(df_copy.index).tz_localize('UTC').tz_convert(et_tz)
+        # Data is already in ET (timezone-naive from alpaca_client), just make it timezone-aware
+        df_copy.index = pd.to_datetime(df_copy.index).tz_localize(et_tz)
     elif df_copy.index.tz != et_tz:
         df_copy.index = df_copy.index.tz_convert(et_tz)
     
@@ -119,9 +120,11 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
             return None
         try:
             # Convert series index to ET timezone if needed
+            # Note: Data from alpaca_client is already in ET (timezone-naive), so treat naive as ET
             series_copy = series.copy()
             if series_copy.index.tz is None:
-                series_copy.index = pd.to_datetime(series_copy.index).tz_localize('UTC').tz_convert(et_tz)
+                # Data is already in ET (timezone-naive), just make it timezone-aware
+                series_copy.index = pd.to_datetime(series_copy.index).tz_localize(et_tz)
             elif series_copy.index.tz != et_tz:
                 series_copy.index = series_copy.index.tz_convert(et_tz)
             
