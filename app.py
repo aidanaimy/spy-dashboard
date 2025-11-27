@@ -869,7 +869,11 @@ def render_signal_report():
     st.header("📊 Signal Report")
     sheet = get_signal_sheet()
     if sheet is None:
-        st.info("Connect a Google Sheet via secrets (GOOGLE_SHEET_NAME + gcp_service_account) to enable signal logging.")
+        st.info(
+            "Connect a Google Sheet via secrets (GOOGLE_SHEET_NAME + gcp_service_account) to enable signal logging.\n"
+            "Verified secrets: "
+            f"gcp_service_account={'gcp_service_account' in st.secrets}, GOOGLE_SHEET_NAME={st.secrets.get('GOOGLE_SHEET_NAME')}"
+        )
         return
 
     try:
