@@ -228,21 +228,16 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     
     # Update layout with ET timezone formatting
     fig.update_layout(
-        title='SPY Intraday Chart',
-        height=700,
+        title='SPY Volume Chart',
+        height=400,
         hovermode='x unified',
         template='plotly_dark',
         showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        xaxis_title='Time (ET)',
+        yaxis_title='Volume'
     )
     
-    # Configure x-axis (shared between subplots)
+    # Configure x-axis
     xaxis_config = {
         'tickformat': '%H:%M',
         'tickmode': 'linear',
@@ -255,13 +250,7 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     if market_open and market_close:
         xaxis_config['range'] = [market_open, market_close]
     
-    # Update both x-axes
-    fig.update_xaxes(**xaxis_config, row=1, col=1)
-    fig.update_xaxes(**xaxis_config, row=2, col=1)
-    
-    # Update y-axes
-    fig.update_yaxes(title_text='Price ($)', row=1, col=1)
-    fig.update_yaxes(title_text='Volume', row=2, col=1)
+    fig.update_xaxes(**xaxis_config)
     
     return fig
 
