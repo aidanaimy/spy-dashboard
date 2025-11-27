@@ -188,6 +188,11 @@ class BacktestEngine:
                 
                 last_processed_time = None
                 bars_processed = 0
+                bars_skipped_before_start = 0
+                bars_skipped_after_close = 0
+                
+                if self.use_options:
+                    print(f"DEBUG Loop Start for {day.date()}: Total bars in dataframe = {len(intraday_df_sorted)}")
                 
                 for idx, row in intraday_df_sorted.iterrows():
                     # Check session time (9:45 - 15:30)
@@ -205,8 +210,10 @@ class BacktestEngine:
                     
                     # Filter bars: start at SESSION_START, but allow until market close (16:00) for exits
                     if time_str < config.SESSION_START:
+                        bars_skipped_before_start += 1
                         continue
                     if time_str > "16:00":  # Market close - no processing after this
+                        bars_skipped_after_close += 1
                         continue
                     
                     last_processed_time = idx
@@ -551,6 +558,13 @@ class BacktestEngine:
                         'timestamp': idx,
                         'equity': equity
                     })
+                
+                # Debug: Show loop summary
+                if self.use_options:
+                    print(f"DEBUG Loop End for {day.date()}: Bars processed={bars_processed}, "
+                          f"Skipped before start={bars_skipped_before_start}, "
+                          f"Skipped after close={bars_skipped_after_close}, "
+                          f"Last processed={last_processed_time}")
                 
                 # Close any remaining position at end of day
                 if current_position is not None:
