@@ -846,7 +846,7 @@ def render_dashboard():
     # Signal card
     signal_body = f"""
         <div style="text-align:center;">
-            <div class="primary-value" style="color:{direction_color}; font-size:2rem; margin-bottom:0.5rem;">{direction_emoji} {signal_direction}</div>
+            <div class="primary-value" style="color:{direction_color}; font-size:2rem; margin-bottom:1.5rem;">{direction_emoji} {signal_direction}</div>
             <div class="metric-grid">
                 <div class="metric-card">
                     <div class="label">Confidence</div>
