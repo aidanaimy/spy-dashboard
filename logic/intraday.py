@@ -46,22 +46,25 @@ def calculate_ema(df: pd.DataFrame, period: int, column: str = 'Close', previous
     if df.empty:
         return pd.Series(dtype=float, index=df.index)
     
-    if previous_ema is not None and len(df) > 0:
+    # Check if we have a valid previous EMA value
+    if previous_ema is not None and pd.notna(previous_ema) and len(df) > 0 and column in df.columns:
         # Calculate smoothing factor
         alpha = 2.0 / (period + 1.0)
         
         # Start with previous day's EMA
-        ema_values = [previous_ema]
+        ema_values = [float(previous_ema)]
         
         # Calculate EMA for each bar
         for i in range(1, len(df)):
-            current_price = df[column].iloc[i]
+            current_price = float(df[column].iloc[i])
             ema = alpha * current_price + (1 - alpha) * ema_values[-1]
             ema_values.append(ema)
         
         return pd.Series(ema_values, index=df.index)
     else:
         # Standard EMA calculation (resets if no previous value)
+        if column not in df.columns:
+            raise ValueError(f"Column '{column}' not found in dataframe. Available columns: {df.columns.tolist()}")
         return df[column].ewm(span=period, adjust=False).mean()
 
 

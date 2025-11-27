@@ -562,9 +562,13 @@ def render_dashboard():
                     yesterday_ema_slow = calculate_ema(yesterday_df_sorted, config.EMA_SLOW)
                     
                     if not yesterday_ema_fast.empty:
-                        previous_ema_fast = yesterday_ema_fast.iloc[-1]
+                        last_fast = yesterday_ema_fast.iloc[-1]
+                        if pd.notna(last_fast):
+                            previous_ema_fast = float(last_fast)
                     if not yesterday_ema_slow.empty:
-                        previous_ema_slow = yesterday_ema_slow.iloc[-1]
+                        last_slow = yesterday_ema_slow.iloc[-1]
+                        if pd.notna(last_slow):
+                            previous_ema_slow = float(last_slow)
             
             # Analyze intraday with previous day's EMA values for continuity
             intraday_analysis = analyze_intraday(intraday_df, previous_ema_fast, previous_ema_slow)
