@@ -12,8 +12,6 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 import textwrap
-import gspread
-from google.oauth2.service_account import Credentials
 from streamlit_autorefresh import st_autorefresh
 
 # Try Alpaca first, fallback to yfinance
@@ -277,55 +275,6 @@ def get_signal_cache() -> Dict[str, Optional[str]]:
     return {"snapshot": None}
 
 
-GSHEET_SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
-
-@st.cache_resource
-def get_signal_sheet():
-    """Authorize and return the Google Sheet worksheet for signal logging."""
-    creds_info = st.secrets.get("gcp_service_account", None)
-    sheet_name = st.secrets.get("GOOGLE_SHEET_NAME", os.getenv("GOOGLE_SHEET_NAME"))
-    if not creds_info or not sheet_name:
-        return None
-    try:
-        creds = Credentials.from_service_account_info(creds_info, scopes=GSHEET_SCOPES)
-        client = gspread.authorize(creds)
-        sheet = client.open(sheet_name).sheet1
-        return sheet
-    except Exception as exc:
-        print(f"Google Sheets unavailable: {exc}")
-        return None
-
-
-def log_signal_event(signal: Dict[str, str], regime: Dict, intraday: Dict,
-                     iv_context: Dict, current_time: datetime,
-                     market_phase: Dict) -> None:
-    """Append the latest signal snapshot to Google Sheets."""
-    sheet = get_signal_sheet()
-    if sheet is None:
-        return
-    try:
-        price = intraday.get("price")
-        atm_iv = iv_context.get("atm_iv") if iv_context else None
-        row = [
-            current_time.isoformat(),
-            signal.get("direction", "NONE"),
-            signal.get("confidence", "LOW"),
-            f"{price:.2f}" if price is not None else "",
-            intraday.get("micro_trend"),
-            regime.get("0dte_status"),
-            market_phase.get("label") if market_phase else "",
-            signal.get("reason", ""),
-            f"{atm_iv:.2f}" if atm_iv is not None else ""
-        ]
-        sheet.append_row(row, value_input_option="RAW")
-    except Exception as exc:
-        print(f"Failed to log signal: {exc}")
-
-
 def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
                         iv_context: Dict, current_time: datetime,
                         market_phase: Dict) -> None:
@@ -363,7 +312,6 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     )
 
     send_discord_notification(message)
-    log_signal_event(signal, regime, intraday, iv_context, current_time, market_phase)
 
 
 def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
@@ -425,7 +373,7 @@ def main():
     # Sidebar for navigation
     page = st.sidebar.selectbox(
         "Navigation",
-        ["Dashboard", "Trade Journal", "Backtest", "Signal Report"]
+        ["Dashboard", "Trade Journal", "Backtest"]
     )
     
     if page == "Dashboard":
@@ -434,8 +382,6 @@ def main():
         render_journal()
     elif page == "Backtest":
         render_backtest()
-    elif page == "Signal Report":
-        render_signal_report()
 
 
 @st.cache_data(ttl=300)  # Cache daily data for 5 minutes (changes once per day)
@@ -862,75 +808,6 @@ def render_journal():
     
     except Exception as e:
         st.error(f"Error loading all trades: {str(e)}")
-
-
-def render_signal_report():
-    """Render historical signal log summary."""
-    st.header("📊 Signal Report")
-    sheet = get_signal_sheet()
-    if sheet is None:
-        st.info(
-            "Connect a Google Sheet via secrets (GOOGLE_SHEET_NAME + gcp_service_account) to enable signal logging.\n"
-            "Verified secrets: "
-            f"gcp_service_account={'gcp_service_account' in st.secrets}, GOOGLE_SHEET_NAME={st.secrets.get('GOOGLE_SHEET_NAME')}"
-        )
-        return
-
-    try:
-        records = sheet.get_all_records()
-    except Exception as exc:
-        st.error(f"Unable to read Google Sheet: {exc}")
-        return
-
-    if not records:
-        st.info("No signal events have been logged yet.")
-        return
-
-    df = pd.DataFrame(records)
-    if "timestamp" not in df.columns:
-        st.info("Signal log is missing the 'timestamp' column.")
-        return
-
-    ts = pd.to_datetime(df["timestamp"])
-    try:
-        if ts.dt.tz is None:
-            ts = ts.dt.tz_localize("America/New_York")
-        else:
-            ts = ts.dt.tz_convert("America/New_York")
-    except TypeError:
-        ts = ts.dt.tz_localize("America/New_York")
-
-    df["timestamp_et"] = ts
-    df["date"] = df["timestamp_et"].dt.date
-
-    today = datetime.now(ZoneInfo("America/New_York")).date()
-    df_today = df[df["date"] == today]
-    target_df = df_today if not df_today.empty else df
-
-    st.caption("Showing today's signals" if not df_today.empty else "No signals yet today - showing entire log.")
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Snapshots", len(target_df))
-    col2.metric("CALL Signals", int((target_df["direction"] == "CALL").sum()))
-    col3.metric("PUT Signals", int((target_df["direction"] == "PUT").sum()))
-
-    phase_counts = target_df["phase"].value_counts().rename("Count")
-    confidence_counts = target_df["confidence"].value_counts().rename("Count")
-
-    chop_hits = target_df["reason"].str.contains("Chop", case=False, na=False).sum()
-    st.metric("Chop Filter Hits", chop_hits)
-
-    st.subheader("Direction Breakdown")
-    st.bar_chart(target_df["direction"].value_counts())
-
-    st.subheader("Confidence Levels")
-    st.bar_chart(confidence_counts)
-
-    st.subheader("Signals by Session Phase")
-    st.bar_chart(phase_counts)
-
-    st.subheader("Recent Events")
-    st.dataframe(target_df.sort_values("timestamp_et", ascending=False).head(20))
 
 
 def render_backtest():
