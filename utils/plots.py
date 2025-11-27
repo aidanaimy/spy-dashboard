@@ -183,7 +183,7 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
         ), row=2, col=1)
     
     # Session markers (vertical lines)
-    if market_open and market_close:
+    if market_open and market_close and len(df_copy) > 0:
         session_times = [
             (datetime.combine(chart_date, time(9, 30)).replace(tzinfo=et_tz), 'Market Open', '#00ff00'),
             (datetime.combine(chart_date, time(12, 0)).replace(tzinfo=et_tz), 'Lunch Start', '#ffaa00'),
@@ -192,15 +192,35 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
             (datetime.combine(chart_date, time(15, 30)).replace(tzinfo=et_tz), 'Trading End', '#ff0000'),
         ]
         
+        # Get price range for vertical line positioning
+        price_min = df_copy['Low'].min()
+        price_max = df_copy['High'].max()
+        price_range = price_max - price_min
+        y_top = price_max + price_range * 0.02  # Slightly above high
+        
         for session_time, label, color in session_times:
             if market_open <= session_time <= market_close:
-                fig.add_vline(
-                    x=session_time,
-                    line_dash="dash",
-                    line_color=color,
+                # Use add_shape instead of add_vline for subplot compatibility
+                fig.add_shape(
+                    type="line",
+                    x0=session_time,
+                    x1=session_time,
+                    y0=price_min,
+                    y1=y_top,
+                    line=dict(color=color, width=1, dash="dash"),
                     opacity=0.5,
-                    annotation_text=label,
-                    annotation_position="top",
+                    row=1, col=1
+                )
+                # Add annotation
+                fig.add_annotation(
+                    x=session_time,
+                    y=y_top,
+                    text=label,
+                    showarrow=False,
+                    font=dict(size=10, color=color),
+                    bgcolor="rgba(0,0,0,0.5)",
+                    bordercolor=color,
+                    borderwidth=1,
                     row=1, col=1
                 )
     
