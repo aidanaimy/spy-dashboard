@@ -209,7 +209,9 @@ class BacktestEngine:
                                     minutes = idx_dt.minute
                                 
                                 T = time_to_expiration_0dte(hours, minutes)
-                                sigma = current_position.get('entry_iv', iv_context.get('vix_level', 20.0) / 100.0)
+                                # Use stored entry IV or fallback to VIX (default 20.0 if None)
+                                vix_level = iv_context.get('vix_level') or 20.0
+                                sigma = current_position.get('entry_iv', vix_level / 100.0)
                                 
                                 current_option_price = self._get_option_price(
                                     current_price, strike, T, sigma, option_type
@@ -376,8 +378,8 @@ class BacktestEngine:
                                 
                                 T = time_to_expiration_0dte(hours, minutes)
                                 
-                                # Use VIX as proxy for IV
-                                vix_level = iv_context.get('vix_level', 20.0)
+                                # Use VIX as proxy for IV (default to 20.0 if None or missing)
+                                vix_level = iv_context.get('vix_level') or 20.0
                                 sigma = vix_level / 100.0
                                 
                                 # Calculate entry option price
@@ -409,8 +411,8 @@ class BacktestEngine:
                                 
                                 T = time_to_expiration_0dte(hours, minutes)
                                 
-                                # Use VIX as proxy for IV
-                                vix_level = iv_context.get('vix_level', 20.0)
+                                # Use VIX as proxy for IV (default to 20.0 if None or missing)
+                                vix_level = iv_context.get('vix_level') or 20.0
                                 sigma = vix_level / 100.0
                                 
                                 # Calculate entry option price
