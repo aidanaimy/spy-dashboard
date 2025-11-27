@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
                     intraday_df: 'pd.DataFrame' = None,
                     iv_context: Optional[Dict] = None,
-                    market_phase: Optional[Dict] = None) -> Dict[str, str]:
+                    market_phase: Optional[Dict] = None,
+                    options_mode: bool = False) -> Dict[str, str]:
     """
     Generate trading bias signal based on regime and intraday conditions.
     Now includes time-of-day filtering and chop detection.
@@ -25,6 +26,9 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
         intraday: Intraday analysis dictionary from intraday.py
         current_time: Current datetime for time filtering (optional)
         intraday_df: Full intraday DataFrame for chop detection (optional)
+        iv_context: IV context dictionary (optional)
+        market_phase: Market phase dictionary (optional)
+        options_mode: If True, applies stricter filters for options trading (default: False)
         
     Returns:
         Dictionary with 'direction' ('CALL', 'PUT', 'NONE'), 
@@ -115,6 +119,39 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
         base_signal = apply_time_filter(base_signal, current_time)
     
     base_signal = apply_environment_filters(base_signal, regime, iv_context, market_phase)
+    
+    # Apply options-specific filters if in options mode
+    if options_mode:
+        direction = base_signal.get('direction', 'NONE')
+        confidence = base_signal.get('confidence', 'LOW')
+        reason = base_signal.get('reason', '')
+        
+        # Filter 1: Only allow HIGH confidence signals for options
+        if confidence != 'HIGH':
+            return {
+                'direction': 'NONE',
+                'confidence': 'LOW',
+                'reason': f"{reason}; Options mode: requires HIGH confidence (current: {confidence})"
+            }
+        
+        # Filter 2: Require minimum move (1%+) for options
+        if abs(return_5) < 0.01:
+            return {
+                'direction': 'NONE',
+                'confidence': 'LOW',
+                'reason': f"{reason}; Options mode: requires 1%+ move (current: {return_5*100:.2f}%)"
+            }
+        
+        # Filter 3: Require minimum IV (12%) for options
+        if iv_context:
+            atm_iv = iv_context.get('atm_iv')
+            if atm_iv is not None and atm_iv < 12:
+                return {
+                    'direction': 'NONE',
+                    'confidence': 'LOW',
+                    'reason': f"{reason}; Options mode: IV too low ({atm_iv:.1f}% < 12%)"
+                }
+    
     return base_signal
 
 

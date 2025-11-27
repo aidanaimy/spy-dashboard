@@ -314,7 +314,8 @@ class BacktestEngine:
                         current_time=idx,
                         intraday_df=intraday_df_sorted.loc[:idx],
                         iv_context=iv_context,
-                        market_phase=market_phase
+                        market_phase=market_phase,
+                        options_mode=self.use_options  # Apply stricter filters for options mode
                     )
                     
                     # Check for exit conditions if in position
@@ -417,7 +418,8 @@ class BacktestEngine:
                     if current_position is None:
                         if self.use_options:
                             # Options mode: Calculate option price at entry
-                            if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                            # Note: options_mode filter already ensures only HIGH confidence signals pass
+                            if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
                                 strike = get_atm_strike(current_price)
                                 option_type = 'call'
                                 
@@ -450,7 +452,8 @@ class BacktestEngine:
                                     'strike': strike,
                                     'entry_iv': sigma
                                 }
-                            elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                            elif signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
+                                # Options mode: Only enter on HIGH confidence (filtered by options_mode)
                                 strike = get_atm_strike(current_price)
                                 option_type = 'put'
                                 
