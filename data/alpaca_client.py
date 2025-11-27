@@ -249,15 +249,13 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
                 'volume': 'Volume'
             })
         
-        # Alpaca returns UTC timestamps - convert to ET, then make timezone-naive
+        # Alpaca returns UTC timestamps - convert to ET and keep timezone-aware
         if bars.index.tz is not None:
             # Convert UTC to ET (America/New_York)
             from zoneinfo import ZoneInfo
             et_tz = ZoneInfo('America/New_York')
-            # Convert UTC to ET
+            # Convert UTC to ET (keep timezone-aware)
             bars.index = bars.index.tz_convert(et_tz)
-            # Then make timezone-naive (keeping ET time)
-            bars.index = bars.index.tz_localize(None)
         
         return bars
     

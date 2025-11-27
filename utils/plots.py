@@ -34,11 +34,12 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     df_copy = df.copy()
     
     # Convert index to ET if needed
-    # Note: Data from alpaca_client is already in ET (timezone-naive), so treat naive as ET
+    # Data from alpaca_client is timezone-aware in ET
     if df_copy.index.tz is None:
-        # Data is already in ET (timezone-naive from alpaca_client), just make it timezone-aware
+        # If somehow timezone-naive, assume it's ET and localize
         df_copy.index = pd.to_datetime(df_copy.index).tz_localize(et_tz)
     elif df_copy.index.tz != et_tz:
+        # Convert from other timezone to ET
         df_copy.index = df_copy.index.tz_convert(et_tz)
     
     # Get the date from the first timestamp for setting the range
@@ -120,12 +121,13 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
             return None
         try:
             # Convert series index to ET timezone if needed
-            # Note: Data from alpaca_client is already in ET (timezone-naive), so treat naive as ET
+            # Data from alpaca_client is timezone-aware in ET
             series_copy = series.copy()
             if series_copy.index.tz is None:
-                # Data is already in ET (timezone-naive), just make it timezone-aware
+                # If somehow timezone-naive, assume it's ET and localize
                 series_copy.index = pd.to_datetime(series_copy.index).tz_localize(et_tz)
             elif series_copy.index.tz != et_tz:
+                # Convert from other timezone to ET
                 series_copy.index = series_copy.index.tz_convert(et_tz)
             
             # Align with target index using nearest match
