@@ -115,6 +115,10 @@ st.markdown(
             grid-template-columns: repeat(4, 1fr);
             gap: 1rem;
         }
+        
+        .card-strip.two-columns {
+            grid-template-columns: repeat(2, 1fr);
+        }
 
         @media (max-width: 1400px) {
             .card-strip {
@@ -230,6 +234,31 @@ st.markdown(
             text-transform: uppercase;
             margin-bottom: 1rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .rationale-content {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .rationale-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .rationale-content li {
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .rationale-content li:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
         }
     </style>
     """,
@@ -803,52 +832,54 @@ def render_dashboard():
     signal_confidence = signal['confidence']
     
     if signal_direction == "CALL":
-        direction_color = "linear-gradient(135deg, #1d9a6c, #2bd47d)"
+        direction_color = "#2bd47d"
         direction_emoji = "🟢"
     elif signal_direction == "PUT":
-        direction_color = "linear-gradient(135deg, #c23b4a, #ff5f6d)"
+        direction_color = "#ff5f6d"
         direction_emoji = "🔴"
     else:
-        direction_color = "linear-gradient(135deg, #3e4c66, #6b7c93)"
+        direction_color = "#8ea0bc"
         direction_emoji = "⚪"
     
-    col_signal1, col_signal2 = st.columns([1.2, 2], gap="large")
-    
     session_label = market_phase.get("label", "Unknown") if 'market_phase' in locals() else "Unknown"
-
-    with col_signal1:
-        st.markdown(
-            f"""
-            <div class='dashboard-section' style='text-align:center; border-top: 4px solid #00000; background: linear-gradient(to bottom, rgba(46,123,255,0.08), rgba(46,123,255,0));'>
-                <h4 style='margin-bottom:1.2rem; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.8rem;'>🎯 Signal</h4>
-                <div class="badge-pill" style="background: {direction_color}; box-shadow: 0 0 20px rgba(0,0,0,0.3); margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.15);">
-                    {direction_emoji} {signal_direction}
-                </div>
-                <div class="confidence-badge" style="{confidence_class(signal_confidence)}">
-                    Confidence: {signal_confidence}
-                </div>
-                <p style="margin-top:1rem; color: var(--text-secondary); font-size:0.85rem;">Session: {session_label}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
     
-    with col_signal2:
-        rationale_html = f"""
-        <div class='dashboard-section' style='border-top: 4px solid #00000;'>
-            <h4>📋 Rationale Breakdown</h4>
+    # Signal card
+    signal_body = f"""
+        <div style="text-align:center;">
+            <div class="primary-value" style="color:{direction_color}; font-size:2rem; margin-bottom:0.5rem;">{direction_emoji} {signal_direction}</div>
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="label">Confidence</div>
+                    <div class="value" style="color:{direction_color};">{signal_confidence}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Session</div>
+                    <div class="value">{session_label}</div>
+                </div>
+            </div>
+        </div>
+    """
+    
+    # Rationale card
+    rationale_body = f"""
+        <div>
             <div class="rationale-content">
-                <ul>
-                    <li>{signal['reason']}</li>
-                    <li>Trend Frame: {regime['trend']}</li>
-                    <li>Micro Trend: {intraday_analysis['micro_trend']} (EMA {config.EMA_FAST}/{config.EMA_SLOW})</li>
-                    <li>Price vs VWAP: {"Above" if intraday_analysis['price'] > intraday_analysis['vwap'] else "Below"}</li>
-                    <li>5-Bar Return: {intraday_analysis['return_5']:.2f}% | VWAP Dist: {intraday_analysis['vwap_distance']:.2f}%</li>
+                <ul style="list-style:none; padding:0; margin:0;">
+                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">{signal['reason']}</li>
+                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Trend Frame: {regime['trend']}</li>
+                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Micro Trend: {intraday_analysis['micro_trend']} (EMA {config.EMA_FAST}/{config.EMA_SLOW})</li>
+                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Price vs VWAP: {"Above" if intraday_analysis['price'] > intraday_analysis['vwap'] else "Below"}</li>
+                    <li style="margin-bottom:0;">5-Bar Return: {intraday_analysis['return_5']:.2f}% | VWAP Dist: {intraday_analysis['vwap_distance']:.2f}%</li>
                 </ul>
             </div>
         </div>
-        """
-        st.markdown(rationale_html, unsafe_allow_html=True)
+    """
+    
+    signal_cards = []
+    signal_cards.append(build_info_card("Signal", "🎯", signal_body, direction_color))
+    signal_cards.append(build_info_card("Rationale Breakdown", "📋", rationale_body, "#2e7bff"))
+    
+    st.markdown(f"<div class='card-strip two-columns'>{''.join(signal_cards)}</div>", unsafe_allow_html=True)
 
 
 def render_journal():
