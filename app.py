@@ -332,7 +332,7 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
         return {"label": "Midday", "is_open": True}
     if within(13, 30, 14, 30):
         return {"label": "Afternoon Drift", "is_open": True}
-    if within(14, 30, 16, 0):
+    if within(14, 30, 15, 30):
         return {"label": "Power Hour", "is_open": True}
     return {"label": "After Hours", "is_open": False}
 
@@ -898,61 +898,74 @@ def render_backtest():
                     datetime.combine(end_date, datetime.max.time())
                 )
                 
-                # Display results
-                st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)
-                st.subheader("Backtest Results")
-                metrics_html = textwrap.dedent(
-                    f"""
-                    <div class="metric-grid" style="margin-top:1rem;">
-                        <div class="metric-card">
-                            <div class="label">Total Trades</div>
-                            <div class="value">{results['num_trades']}</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="label">Win Rate</div>
-                            <div class="value">{results['win_rate']*100:.1f}%</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="label">Avg R Multiple</div>
-                            <div class="value">{results['avg_r_multiple']:.2f}</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="label">Max Drawdown</div>
-                            <div class="value">{results['max_drawdown']*100:.2f}%</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="label">Total P/L</div>
-                            <div class="value">${results['total_pnl']:.2f}</div>
-                        </div>
-                    </div>
-                    """
-                )
-                st.markdown(metrics_html, unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                if not results['equity_curve'].empty:
-                    st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
-                    st.subheader("Equity Curve")
-                    fig = plot_equity_curve(results['equity_curve'])
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Trades table
-                if not results['trades'].empty:
-                    st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
-                    st.subheader("Trades")
-                    trades_html = results['trades'].to_html(
-                        classes="styled-table",
-                        index=False,
-                        border=0,
-                        justify="center"
-                    )
-                    st.markdown(trades_html, unsafe_allow_html=True)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                # Store results in session state to persist across reruns
+                st.session_state.backtest_results = results
+                st.session_state.backtest_start_date = start_date
+                st.session_state.backtest_end_date = end_date
+                st.rerun()
             
             except Exception as e:
                 st.error(f"Error running backtest: {str(e)}")
                 st.exception(e)
+    
+    # Display results if they exist in session state
+    if 'backtest_results' in st.session_state:
+        results = st.session_state.backtest_results
+        
+        # Show date range
+        st.info(f"📅 Backtest Period: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date}")
+        
+        # Display results
+        st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)
+        st.subheader("Backtest Results")
+        metrics_html = textwrap.dedent(
+            f"""
+            <div class="metric-grid" style="margin-top:1rem;">
+                <div class="metric-card">
+                    <div class="label">Total Trades</div>
+                    <div class="value">{results['num_trades']}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Win Rate</div>
+                    <div class="value">{results['win_rate']*100:.1f}%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Avg R Multiple</div>
+                    <div class="value">{results['avg_r_multiple']:.2f}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Max Drawdown</div>
+                    <div class="value">{results['max_drawdown']*100:.2f}%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Total P/L</div>
+                    <div class="value">${results['total_pnl']:.2f}</div>
+                </div>
+            </div>
+            """
+        )
+        st.markdown(metrics_html, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        if not results['equity_curve'].empty:
+            st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
+            st.subheader("Equity Curve")
+            fig = plot_equity_curve(results['equity_curve'])
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Trades table
+        if not results['trades'].empty:
+            st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
+            st.subheader("Trades")
+            trades_html = results['trades'].to_html(
+                classes="styled-table",
+                index=False,
+                border=0,
+                justify="center"
+            )
+            st.markdown(trades_html, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

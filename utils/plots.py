@@ -6,6 +6,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 from typing import Optional
+from zoneinfo import ZoneInfo
+from datetime import datetime, time
 
 
 def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None,
@@ -23,56 +25,105 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     Returns:
         Plotly figure
     """
+    # Ensure timezone is ET and convert index if needed
+    et_tz = ZoneInfo("America/New_York")
+    df_copy = df.copy()
+    
+    # Convert index to ET if it's timezone-naive or in a different timezone
+    if df_copy.index.tz is None:
+        # Assume UTC if naive, convert to ET
+        df_copy.index = pd.to_datetime(df_copy.index).tz_localize('UTC').tz_convert(et_tz)
+    elif df_copy.index.tz != et_tz:
+        df_copy.index = df_copy.index.tz_convert(et_tz)
+    
+    # Get the date from the first timestamp for setting the range
+    if len(df_copy) > 0:
+        first_timestamp = df_copy.index[0]
+        chart_date = first_timestamp.date()
+        
+        # Set x-axis range to show full trading day (9:00 AM - 5:00 PM ET for context)
+        market_open = datetime.combine(chart_date, time(9, 0)).replace(tzinfo=et_tz)
+        market_close = datetime.combine(chart_date, time(17, 0)).replace(tzinfo=et_tz)
+    else:
+        market_open = None
+        market_close = None
+    
     fig = go.Figure()
     
     # Candlestick
     fig.add_trace(go.Candlestick(
-        x=df.index,
-        open=df['Open'],
-        high=df['High'],
-        low=df['Low'],
-        close=df['Close'],
+        x=df_copy.index,
+        open=df_copy['Open'],
+        high=df_copy['High'],
+        low=df_copy['Low'],
+        close=df_copy['Close'],
         name='SPY'
     ))
     
     # VWAP overlay
     if vwap is not None:
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=vwap,
-            mode='lines',
-            name='VWAP',
-            line=dict(color='blue', width=2)
-        ))
+        # Ensure VWAP index matches df_copy index
+        vwap_aligned = vwap.reindex(df_copy.index, method='ffill') if len(vwap) > 0 else None
+        if vwap_aligned is not None:
+            fig.add_trace(go.Scatter(
+                x=df_copy.index,
+                y=vwap_aligned,
+                mode='lines',
+                name='VWAP',
+                line=dict(color='blue', width=2)
+            ))
     
     # Fast EMA overlay
     if ema_fast is not None:
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=ema_fast,
-            mode='lines',
-            name=f'EMA {9}',
-            line=dict(color='orange', width=1.5)
-        ))
+        ema_fast_aligned = ema_fast.reindex(df_copy.index, method='ffill') if len(ema_fast) > 0 else None
+        if ema_fast_aligned is not None:
+            fig.add_trace(go.Scatter(
+                x=df_copy.index,
+                y=ema_fast_aligned,
+                mode='lines',
+                name=f'EMA {9}',
+                line=dict(color='orange', width=1.5)
+            ))
     
     # Slow EMA overlay
     if ema_slow is not None:
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=ema_slow,
-            mode='lines',
-            name=f'EMA {21}',
-            line=dict(color='purple', width=1.5)
-        ))
+        ema_slow_aligned = ema_slow.reindex(df_copy.index, method='ffill') if len(ema_slow) > 0 else None
+        if ema_slow_aligned is not None:
+            fig.add_trace(go.Scatter(
+                x=df_copy.index,
+                y=ema_slow_aligned,
+                mode='lines',
+                name=f'EMA {21}',
+                line=dict(color='purple', width=1.5)
+            ))
     
-    fig.update_layout(
-        title='SPY Intraday Chart',
-        xaxis_title='Time',
-        yaxis_title='Price',
-        xaxis_rangeslider_visible=False,
-        height=600,
-        hovermode='x unified'
-    )
+    # Update layout with ET timezone formatting
+    layout_updates = {
+        'title': 'SPY Intraday Chart',
+        'xaxis_title': 'Time (ET)',
+        'yaxis_title': 'Price',
+        'xaxis_rangeslider_visible': False,
+        'height': 600,
+        'hovermode': 'x unified',
+    }
+    
+    # Configure x-axis with ET timezone and full trading day range
+    xaxis_config = {
+        'tickformat': '%H:%M',
+        'tickmode': 'linear',
+        'dtick': 3600000,  # 1 hour in milliseconds (for datetime)
+        'showgrid': True,
+        'tickangle': -45,
+        'ticklabelmode': 'period',
+    }
+    
+    # Set x-axis range to show full trading day (9:00 AM - 5:00 PM ET)
+    if market_open and market_close:
+        xaxis_config['range'] = [market_open, market_close]
+    
+    layout_updates['xaxis'] = xaxis_config
+    
+    fig.update_layout(**layout_updates)
     
     return fig
 

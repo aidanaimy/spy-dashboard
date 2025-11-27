@@ -138,12 +138,18 @@ def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[D
         reason = f"{reason}; 0DTE GREEN (volatile)"
 
     if market_phase:
+        phase_label = market_phase.get('label', '')
+        
+        # Block signals during Pre-Market and After Hours
         if not market_phase.get('is_open', False) and direction != 'NONE':
             return {
                 'direction': 'NONE',
                 'confidence': 'LOW',
-                'reason': f"{reason}; Session {market_phase.get('label')} - signals paused"
+                'reason': f"{reason}; Session {phase_label} - signals paused"
             }
+        
+        # Note: Afternoon Drift confidence is handled by chop detector (data-driven)
+        # If market is actually choppy during 1:30-2:30, chop detector will catch it
 
     if iv_context:
         atm_iv = iv_context.get('atm_iv')

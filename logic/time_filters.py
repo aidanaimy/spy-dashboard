@@ -19,12 +19,14 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
     """
     time_str = current_time.strftime('%H:%M')
     
-    # Check if in avoid period (midday chop: 11:00-1:30)
+    # Check if in lunch period (12:00-1:00) - reduce confidence instead of blocking
+    # Chop detector will catch actual choppy conditions, but we reduce confidence
+    # for this known lower-quality period
     if config.AVOID_TRADE_START <= time_str < config.AVOID_TRADE_END:
         return {
-            'allow_trade': False,
-            'confidence_multiplier': 0.0,
-            'reason': 'Midday chop period - avoid trades'
+            'allow_trade': True,
+            'confidence_multiplier': 0.6,  # Reduce confidence by 40%
+            'reason': 'Lunch period (12:00-1:00) - reduced confidence (chop detector handles actual chop)'
         }
     
     # Check if within first N minutes after open (reduce confidence)

@@ -22,6 +22,7 @@ except (ImportError, AttributeError):
 from logic.regime import analyze_regime
 from logic.intraday import analyze_intraday
 from logic.signals import generate_signal
+from logic.iv import fetch_historical_vix_context
 import config
 
 
@@ -113,6 +114,22 @@ class BacktestEngine:
                 # Process each bar in the day
                 intraday_df_sorted = intraday_df.sort_index()
                 
+                # Fetch VIX context for this day (once per day, reused for all bars)
+                try:
+                    # Use the first bar's timestamp as the day reference
+                    first_bar_time = intraday_df_sorted.index[0]
+                    if hasattr(first_bar_time, 'to_pydatetime'):
+                        day_datetime = first_bar_time.to_pydatetime()
+                    elif isinstance(first_bar_time, datetime):
+                        day_datetime = first_bar_time
+                    else:
+                        day_datetime = pd.to_datetime(first_bar_time).to_pydatetime()
+                    
+                    iv_context = fetch_historical_vix_context(day_datetime)
+                except Exception:
+                    # If VIX fetch fails, use empty context
+                    iv_context = {}
+                
                 for idx, row in intraday_df_sorted.iterrows():
                     # Check session time (9:45 - 15:30)
                     if hasattr(idx, 'strftime'):
@@ -130,18 +147,84 @@ class BacktestEngine:
                     if time_str < config.SESSION_START or time_str > config.SESSION_END:
                         continue
                     
+                    current_price = row['Close']
+                    
+                    # Block entries at and after BLOCK_TRADE_AFTER time (15:30)
+                    if time_str >= config.BLOCK_TRADE_AFTER:
+                        # Still process exits, but no new entries
+                        if current_position is not None:
+                            # Check exit conditions
+                            entry_price = current_position['entry_price']
+                            if current_position['direction'] == 'LONG':
+                                pnl_pct = (current_price - entry_price) / entry_price
+                            else:
+                                pnl_pct = (entry_price - current_price) / entry_price
+                            
+                            exit_reason = None
+                            if pnl_pct >= self.tp_pct:
+                                exit_reason = 'TP'
+                            elif pnl_pct <= -self.sl_pct:
+                                exit_reason = 'SL'
+                            elif time_str >= config.SESSION_END:
+                                exit_reason = 'EOD'
+                            
+                            if exit_reason:
+                                if current_position['direction'] == 'LONG':
+                                    pnl = (current_price - entry_price) * self.position_size
+                                else:
+                                    pnl = (entry_price - current_price) * self.position_size
+                                
+                                equity += pnl
+                                trades.append({
+                                    'entry_time': current_position['entry_time'],
+                                    'exit_time': idx,
+                                    'direction': current_position['direction'],
+                                    'entry_price': entry_price,
+                                    'exit_price': current_price,
+                                    'pnl': pnl,
+                                    'exit_reason': exit_reason
+                                })
+                                current_position = None
+                        
+                        # Skip signal generation and entry after block time
+                        equity_curve.append({
+                            'timestamp': idx,
+                            'equity': equity
+                        })
+                        continue
+                    
                     # Analyze intraday at this point
                     intraday_data = analyze_intraday(intraday_df_sorted.loc[:idx])
                     
-                    # Generate signal (with time filtering and chop detection)
+                    # Get market phase for time filtering
+                    if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                        et_time = idx
+                    else:
+                        et_time = pd.to_datetime(idx)
+                    
+                    minutes = et_time.hour * 60 + et_time.minute
+                    if minutes < 9 * 60 + 30:
+                        market_phase = {"label": "Pre-Market", "is_open": False}
+                    elif minutes < 11 * 60:
+                        market_phase = {"label": "Open Drive", "is_open": True}
+                    elif minutes < 13 * 60 + 30:
+                        market_phase = {"label": "Midday", "is_open": True}
+                    elif minutes < 14 * 60 + 30:
+                        market_phase = {"label": "Afternoon Drift", "is_open": True}
+                    elif minutes < 15 * 60 + 30:
+                        market_phase = {"label": "Power Hour", "is_open": True}
+                    else:
+                        market_phase = {"label": "After Hours", "is_open": False}
+                    
+                    # Generate signal (with time filtering, chop detection, and IV/VIX context)
                     signal = generate_signal(
                         regime, 
                         intraday_data,
                         current_time=idx,
-                        intraday_df=intraday_df_sorted.loc[:idx]
+                        intraday_df=intraday_df_sorted.loc[:idx],
+                        iv_context=iv_context,
+                        market_phase=market_phase
                     )
-                    
-                    current_price = row['Close']
                     
                     # Check for exit conditions if in position
                     if current_position is not None:
@@ -160,7 +243,7 @@ class BacktestEngine:
                         elif pnl_pct <= -self.sl_pct:
                             exit_reason = 'SL'
                         
-                        # Exit at end of day
+                        # Exit at end of session (15:30)
                         if time_str >= config.SESSION_END:
                             exit_reason = 'EOD'
                         

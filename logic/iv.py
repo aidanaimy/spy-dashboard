@@ -3,6 +3,7 @@ Option implied volatility context via yfinance.
 """
 
 from typing import Dict, Optional
+from datetime import datetime, timedelta
 
 import numpy as np
 import yfinance as yf
@@ -65,6 +66,67 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     return {
         'atm_iv': atm_iv,
         'expiry': expiry,
+        'vix_level': vix_level,
+        'vix_rank': vix_rank,
+        'vix_percentile': vix_percentile
+    }
+
+
+def fetch_historical_vix_context(target_date: datetime, lookback_days: int = 252) -> Dict[str, Optional[float]]:
+    """
+    Fetch historical VIX data for a specific date (for backtesting).
+    
+    Args:
+        target_date: The date to fetch VIX data for
+        lookback_days: Days for VIX percentile/rank calculation (from target_date backwards)
+        
+    Returns:
+        Dict with vix metrics (atm_iv will be None for historical data)
+    """
+    vix_level = None
+    vix_rank = None
+    vix_percentile = None
+    
+    try:
+        vix = yf.Ticker("^VIX")
+        # Fetch historical data up to target_date
+        end_date = target_date.date()
+        start_date = end_date - timedelta(days=lookback_days + 30)  # Extra buffer for weekends/holidays
+        
+        hist = vix.history(start=start_date, end=end_date + timedelta(days=1))
+        
+        if not hist.empty:
+            # Get VIX level on or before target_date
+            target_date_only = target_date.date()
+            hist_dates = hist.index.date if hasattr(hist.index, 'date') else [d.date() for d in hist.index]
+            
+            # Find the closest date <= target_date
+            valid_dates = [d for d in hist_dates if d <= target_date_only]
+            if valid_dates:
+                closest_date = max(valid_dates)
+                date_idx = hist_dates.index(closest_date) if closest_date in hist_dates else -1
+                if date_idx >= 0:
+                    vix_level = float(hist['Close'].iloc[date_idx])
+            
+            # Calculate rank and percentile from lookback period ending at target_date
+            if vix_level is not None:
+                lookback_hist = hist[hist.index <= target_date]
+                if len(lookback_hist) >= 20:  # Need some data for meaningful stats
+                    # Use last lookback_days worth of data
+                    lookback_hist = lookback_hist.tail(min(lookback_days, len(lookback_hist)))
+                    vix_min = float(lookback_hist['Close'].min())
+                    vix_max = float(lookback_hist['Close'].max())
+                    if vix_max > vix_min:
+                        vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
+                    vix_percentile = float((lookback_hist['Close'] <= vix_level).mean())
+    except Exception:
+        vix_level = None
+        vix_rank = None
+        vix_percentile = None
+    
+    return {
+        'atm_iv': None,  # Historical ATM IV not easily available
+        'expiry': None,
         'vix_level': vix_level,
         'vix_rank': vix_rank,
         'vix_percentile': vix_percentile
