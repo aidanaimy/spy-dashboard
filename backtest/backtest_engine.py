@@ -136,6 +136,13 @@ class BacktestEngine:
                         bar_time = intraday_df.index[i]
                         bar_price = intraday_df.iloc[i]['Close']
                         print(f"    {bar_time} = {bar_price:.2f}")
+                    
+                    # Show bars around 14:55 to verify data
+                    print(f"  Bars around 14:55:")
+                    for i, (bar_time, row) in enumerate(intraday_df.iterrows()):
+                        bar_time_str = bar_time.strftime('%H:%M') if hasattr(bar_time, 'strftime') else str(bar_time)
+                        if "14:50" <= bar_time_str <= "15:00":
+                            print(f"    {bar_time} ({bar_time_str}) = Close:{row['Close']:.2f}, High:{row.get('High', 'N/A')}, Low:{row.get('Low', 'N/A')}")
                 
                 # Get daily data up to this day for regime analysis
                 daily_df_up_to_day = daily_df[daily_df.index.date <= day.date()].sort_index()
@@ -193,12 +200,21 @@ class BacktestEngine:
                         except:
                             time_str = "00:00"  # Default if can't parse
                     
-                    if time_str < config.SESSION_START or time_str > config.SESSION_END:
+                    # Filter bars: start at SESSION_START, but allow until market close (16:00) for exits
+                    if time_str < config.SESSION_START:
+                        continue
+                    if time_str > "16:00":  # Market close - no processing after this
                         continue
                     
                     current_price = row['Close']
                     
+                    # Debug: Show bar data at 14:55 to verify we're using correct bar
+                    if self.use_options and time_str == "14:55":
+                        print(f"DEBUG 14:55 Bar: idx={idx}, time_str={time_str}, Close={current_price:.2f}, "
+                              f"High={row.get('High', 'N/A')}, Low={row.get('Low', 'N/A')}, Open={row.get('Open', 'N/A')}")
+                    
                     # Block entries at and after BLOCK_TRADE_AFTER time (15:30)
+                    # But continue processing exits until market close (16:00)
                     if time_str >= config.BLOCK_TRADE_AFTER:
                         # Still process exits, but no new entries
                         if current_position is not None:
@@ -371,7 +387,7 @@ class BacktestEngine:
                                 exit_reason = 'TP'
                             elif pnl_pct <= -self.options_sl_pct:
                                 exit_reason = 'SL'
-                            elif time_str >= config.SESSION_END:
+                            elif time_str >= "16:00":  # Market close - exit all positions
                                 exit_reason = 'EOD'
                             
                             if exit_reason:
