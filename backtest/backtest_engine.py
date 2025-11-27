@@ -126,6 +126,17 @@ class BacktestEngine:
                 if intraday_df.empty:
                     continue
                 
+                # Debug: Print last few bars to verify data
+                if self.use_options:
+                    print(f"\nDEBUG Data Check for {day.date()}:")
+                    print(f"  Total bars: {len(intraday_df)}")
+                    print(f"  First bar: {intraday_df.index[0]} = {intraday_df.iloc[0]['Close']:.2f}")
+                    print(f"  Last 5 bars:")
+                    for i in range(max(0, len(intraday_df)-5), len(intraday_df)):
+                        bar_time = intraday_df.index[i]
+                        bar_price = intraday_df.iloc[i]['Close']
+                        print(f"    {bar_time} = {bar_price:.2f}")
+                
                 # Get daily data up to this day for regime analysis
                 daily_df_up_to_day = daily_df[daily_df.index.date <= day.date()].sort_index()
                 
