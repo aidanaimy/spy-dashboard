@@ -51,13 +51,16 @@ def calculate_ema(df: pd.DataFrame, period: int, column: str = 'Close', previous
         # Calculate smoothing factor
         alpha = 2.0 / (period + 1.0)
         
-        # Start with previous day's EMA
-        ema_values = [float(previous_ema)]
-        
-        # Calculate EMA for each bar
-        for i in range(1, len(df)):
+        # Calculate EMA for each bar, starting with first bar using previous EMA
+        ema_values = []
+        for i in range(len(df)):
             current_price = float(df[column].iloc[i])
-            ema = alpha * current_price + (1 - alpha) * ema_values[-1]
+            if i == 0:
+                # First bar: EMA = alpha * current_price + (1 - alpha) * previous_ema
+                ema = alpha * current_price + (1 - alpha) * float(previous_ema)
+            else:
+                # Subsequent bars: EMA = alpha * current_price + (1 - alpha) * previous_ema_value
+                ema = alpha * current_price + (1 - alpha) * ema_values[-1]
             ema_values.append(ema)
         
         return pd.Series(ema_values, index=df.index)
