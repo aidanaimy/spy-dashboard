@@ -33,6 +33,7 @@ SESSION_END = "15:30"
 AVOID_TRADE_START = "11:00"  # Start of avoid period (midday chop)
 AVOID_TRADE_END = "13:30"    # End of avoid period
 POWER_HOUR_START = "14:30"   # Power hour start (increase confidence)
+BLOCK_TRADE_AFTER = "15:30"  # Block all signals after this time (too close to market close at 16:00)
 REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES = 10  # Reduce confidence for first N minutes after open
 
 # Chop detection parameters

@@ -44,6 +44,14 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
             'reason': f'First {config.REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES} min after open - reduced confidence'
         }
     
+    # Check if too close to market close - block trades
+    if time_str > config.BLOCK_TRADE_AFTER:
+        return {
+            'allow_trade': False,
+            'confidence_multiplier': 0.0,
+            'reason': f'Too close to market close (after {config.BLOCK_TRADE_AFTER}) - avoid late-day trades'
+        }
+    
     # Check if in power hour (2:30-3:30) - increase confidence
     if time_str >= config.POWER_HOUR_START:
         return {
