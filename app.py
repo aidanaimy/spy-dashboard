@@ -131,7 +131,7 @@ st.markdown(
         .info-card {
             background: var(--panel-light);
             border-radius: 12px;
-            padding: 1rem 1.25rem 1.25rem 1.25rem;
+            padding: 1.5rem 1.25rem 1.25rem 1.25rem;
             border: 1px solid var(--border-color);
             position: relative;
             overflow: hidden;
@@ -158,7 +158,7 @@ st.markdown(
         }
 
         .info-card h4 {
-            margin: 0 0 0.75rem 0;
+            margin: 0 0 1rem 0;
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.1em;
