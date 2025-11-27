@@ -419,9 +419,31 @@ def render_dashboard():
                 from data.alpaca_client import get_alpaca_api
                 alpaca_api = get_alpaca_api()
                 data_source = "Alpaca" if alpaca_api is not None else "yfinance (fallback)"
+                
+                # Check if market is open by getting latest trade
+                if alpaca_api is not None:
+                    try:
+                        latest_trade = alpaca_api.get_latest_trade("SPY")
+                        if latest_trade:
+                            trade_time = latest_trade.t
+                            if hasattr(trade_time, 'astimezone'):
+                                trade_time_et = trade_time.astimezone(ZoneInfo("America/New_York"))
+                                trade_date = trade_time_et.date()
+                                trade_time_str = trade_time_et.strftime('%Y-%m-%d %H:%M:%S ET')
+                                is_today = trade_date == datetime.now(et_tz).date()
+                                market_status = "OPEN (today)" if is_today else f"CLOSED (last: {trade_time_str})"
+                                st.caption(f"Data source: {data_source} | Market: {market_status}")
+                            else:
+                                st.caption(f"Data source: {data_source}")
+                        else:
+                            st.caption(f"Data source: {data_source} | Market: No trade data")
+                    except:
+                        st.caption(f"Data source: {data_source}")
+                else:
+                    st.caption(f"Data source: {data_source}")
             except:
                 data_source = "yfinance"
-            st.caption(f"Data source: {data_source}")
+                st.caption(f"Data source: {data_source}")
             
             # Use cached functions
             daily_df = get_cached_daily_data(config.SYMBOL, config.DAILY_LOOKBACK_DAYS)
@@ -447,7 +469,10 @@ def render_dashboard():
                 latest_bar_time = intraday_raw.index[-1]
                 latest_bar_date = latest_bar_time.date()
                 current_time = datetime.now(et_tz)
-                st.caption(f"Latest bar: {latest_bar_time.strftime('%Y-%m-%d %H:%M:%S ET')} | Today: {today} | Current: {current_time.strftime('%H:%M:%S ET')} | Today's bars: {len(intraday_df)}")
+                # Show unique dates in the data
+                unique_dates = sorted(set(intraday_raw.index.date))
+                dates_str = ", ".join([d.strftime('%m-%d') for d in unique_dates[-5:]])  # Last 5 dates
+                st.caption(f"Latest bar: {latest_bar_time.strftime('%Y-%m-%d %H:%M:%S ET')} | Today: {today} | Current: {current_time.strftime('%H:%M:%S ET')} | Today's bars: {len(intraday_df)} | Dates in data: {dates_str}")
             
             if intraday_df.empty:
                 # Fallback: use last available session so dashboard still renders
