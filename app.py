@@ -414,37 +414,6 @@ def render_dashboard():
     # Load data with caching
     try:
         with st.spinner("Loading market data..."):
-            # Debug: show which data source is being used
-            try:
-                from data.alpaca_client import get_alpaca_api
-                alpaca_api = get_alpaca_api()
-                data_source = "Alpaca" if alpaca_api is not None else "yfinance (fallback)"
-                
-                # Check if market is open by getting latest trade
-                if alpaca_api is not None:
-                    try:
-                        latest_trade = alpaca_api.get_latest_trade("SPY")
-                        if latest_trade:
-                            trade_time = latest_trade.t
-                            if hasattr(trade_time, 'astimezone'):
-                                trade_time_et = trade_time.astimezone(ZoneInfo("America/New_York"))
-                                trade_date = trade_time_et.date()
-                                trade_time_str = trade_time_et.strftime('%Y-%m-%d %H:%M:%S ET')
-                                is_today = trade_date == datetime.now(et_tz).date()
-                                market_status = "OPEN (today)" if is_today else f"CLOSED (last: {trade_time_str})"
-                                st.caption(f"Data source: {data_source} | Market: {market_status}")
-                            else:
-                                st.caption(f"Data source: {data_source}")
-                        else:
-                            st.caption(f"Data source: {data_source} | Market: No trade data")
-                    except:
-                        st.caption(f"Data source: {data_source}")
-                else:
-                    st.caption(f"Data source: {data_source}")
-            except:
-                data_source = "yfinance"
-                st.caption(f"Data source: {data_source}")
-            
             # Use cached functions
             daily_df = get_cached_daily_data(config.SYMBOL, config.DAILY_LOOKBACK_DAYS)
             
@@ -461,6 +430,37 @@ def render_dashboard():
             # Filter to today only
             intraday_raw.index = pd.to_datetime(intraday_raw.index)
             et_tz = ZoneInfo("America/New_York")
+            
+            # Debug: show which data source is being used and market status
+            try:
+                from data.alpaca_client import get_alpaca_api
+                alpaca_api = get_alpaca_api()
+                data_source = "Alpaca" if alpaca_api is not None else "yfinance (fallback)"
+                
+                # Check if market is open by getting latest trade
+                if alpaca_api is not None:
+                    try:
+                        latest_trade = alpaca_api.get_latest_trade("SPY")
+                        if latest_trade:
+                            trade_time = latest_trade.t
+                            if hasattr(trade_time, 'astimezone'):
+                                trade_time_et = trade_time.astimezone(et_tz)
+                                trade_date = trade_time_et.date()
+                                trade_time_str = trade_time_et.strftime('%Y-%m-%d %H:%M:%S ET')
+                                is_today = trade_date == datetime.now(et_tz).date()
+                                market_status = "OPEN (today)" if is_today else f"CLOSED (last: {trade_time_str})"
+                                st.caption(f"Data source: {data_source} | Market: {market_status}")
+                            else:
+                                st.caption(f"Data source: {data_source}")
+                        else:
+                            st.caption(f"Data source: {data_source} | Market: No trade data")
+                    except Exception as e:
+                        st.caption(f"Data source: {data_source} | Market check failed: {str(e)}")
+                else:
+                    st.caption(f"Data source: {data_source}")
+            except:
+                data_source = "yfinance"
+                st.caption(f"Data source: {data_source}")
             today = datetime.now(et_tz).date()
             intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
             
