@@ -3,13 +3,14 @@ Main Streamlit app for SPY small-DTE trading dashboard.
 """
 
 import os
+from datetime import datetime, timedelta
+from typing import Dict, Optional
 
 import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
 import textwrap
-from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
 # Try Alpaca first, fallback to yfinance
