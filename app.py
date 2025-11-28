@@ -558,30 +558,6 @@ def render_dashboard():
                 alpaca_api = get_alpaca_api()
                 data_source = "Alpaca" if alpaca_api is not None else "yfinance"
                 data_source_color = "#2bd47d" if alpaca_api is not None else "#f7b500"
-                
-                # Check if market is open by getting latest trade
-                market_status = "UNKNOWN"
-                market_status_color = "#8ea0bc"
-                latest_trade_time = None
-                
-                if alpaca_api is not None:
-                    try:
-                        latest_trade = alpaca_api.get_latest_trade("SPY")
-                        if latest_trade:
-                            trade_time = latest_trade.t
-                            if hasattr(trade_time, 'astimezone'):
-                                trade_time_et = trade_time.astimezone(et_tz)
-                                trade_date = trade_time_et.date()
-                                latest_trade_time = trade_time_et.strftime('%H:%M:%S ET')
-                                is_today = trade_date == datetime.now(et_tz).date()
-                                if is_today:
-                                    market_status = "OPEN"
-                                    market_status_color = "#2bd47d"
-                                else:
-                                    market_status = "CLOSED"
-                                    market_status_color = "#ff5f6d"
-                    except Exception:
-                        pass
             except:
                 data_source = "yfinance"
                 data_source_color = "#f7b500"
@@ -591,6 +567,19 @@ def render_dashboard():
             market_phase = get_market_phase(current_time)
             phase_label = market_phase.get('label', 'Unknown')
             phase_is_open = market_phase.get('is_open', False)
+            
+            # Determine market status based on current time and phase
+            # Market is OPEN only during regular trading hours (9:30 AM - 4:00 PM ET)
+            current_time_only = current_time.time()
+            market_open_time = time(9, 30)
+            market_close_time = time(16, 0)
+            
+            if market_open_time <= current_time_only < market_close_time:
+                market_status = "OPEN"
+                market_status_color = "#2bd47d"
+            else:
+                market_status = "CLOSED"
+                market_status_color = "#ff5f6d"
             
             today = datetime.now(et_tz).date()
             intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
