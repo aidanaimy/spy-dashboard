@@ -74,12 +74,13 @@ def run_full_backtest():
         if 'time_analysis' in results and results['time_analysis']:
             print("⏰ PERFORMANCE BY TIME OF DAY:")
             for period, stats in results['time_analysis'].items():
-                print(f"  {period}:")
-                print(f"    Trades: {stats['count']}")
-                if stats['count'] > 0:
-                    print(f"    Win Rate: {stats['win_rate']:.1%}")
-                    print(f"    Avg R: {stats['avg_r_multiple']:.2f}")
-                    print(f"    P/L: ${stats['total_pnl']:,.2f}")
+                if isinstance(stats, dict) and 'count' in stats:
+                    print(f"  {period}:")
+                    print(f"    Trades: {stats['count']}")
+                    if stats['count'] > 0:
+                        print(f"    Win Rate: {stats.get('win_rate', 0):.1%}")
+                        print(f"    Avg R: {stats.get('avg_r_multiple', 0):.2f}")
+                        print(f"    P/L: ${stats.get('total_pnl', 0):,.2f}")
             print()
         
         # Debug info
