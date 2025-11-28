@@ -99,6 +99,7 @@ class BacktestEngine:
         trades = []
         equity_curve = []
         current_position = None  # {'direction': 'LONG'/'SHORT', 'entry_price': float, 'entry_time': datetime}
+        last_stop_loss = None  # {'direction': 'LONG'/'SHORT', 'time': datetime} - track last SL for cooldown
         equity = 10000.0  # Starting equity
         
         # Debug counters
@@ -467,6 +468,13 @@ class BacktestEngine:
                                         '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                     })
                                     
+                                    # Track stop loss for cooldown
+                                    if exit_reason == 'SL':
+                                        last_stop_loss = {
+                                            'direction': current_position['direction'],
+                                            'time': idx
+                                        }
+                                    
                                     current_position = None
                             else:
                                 # Shares mode: Calculate P/L percentage based on underlying
@@ -508,14 +516,33 @@ class BacktestEngine:
                                         '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                     })
                                     
+                                    # Track stop loss for cooldown
+                                    if exit_reason == 'SL':
+                                        last_stop_loss = {
+                                            'direction': current_position['direction'],
+                                            'time': idx
+                                        }
+                                    
                                     current_position = None
                         
                         # Check for entry if no position
                         if current_position is None:
-                            if self.use_options:
-                                # Options mode: Calculate option price at entry
-                                # Note: options_mode filter already ensures only HIGH confidence signals pass
-                                if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
+                            # Check cooldown: don't re-enter same direction within cooldown period after stop loss
+                            skip_due_to_cooldown = False
+                            if last_stop_loss is not None:
+                                time_since_stop = (idx - last_stop_loss['time']).total_seconds() / 60  # minutes
+                                same_direction = (
+                                    (signal['direction'] == 'CALL' and last_stop_loss['direction'] == 'LONG') or
+                                    (signal['direction'] == 'PUT' and last_stop_loss['direction'] == 'SHORT')
+                                )
+                                if same_direction and time_since_stop < config.BACKTEST_REENTRY_COOLDOWN_MINUTES:
+                                    skip_due_to_cooldown = True
+                            
+                            if not skip_due_to_cooldown:
+                                if self.use_options:
+                                    # Options mode: Calculate option price at entry
+                                    # Note: options_mode filter already ensures only HIGH confidence signals pass
+                                    if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
                                     strike = get_atm_strike(current_price)
                                     option_type = 'call'
                                     
@@ -588,26 +615,26 @@ class BacktestEngine:
                                         'signal_reason': signal.get('reason', 'N/A'),
                                         '0dte_permission': regime.get('0dte_status', 'N/A')
                                     }
-                            else:
-                                # Shares mode: Original logic
-                                if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
-                                    current_position = {
-                                        'direction': 'LONG',
-                                        'entry_price': current_price,
-                                        'entry_time': idx,
-                                        'signal_confidence': signal.get('confidence', 'N/A'),
-                                        'signal_reason': signal.get('reason', 'N/A'),
-                                        '0dte_permission': regime.get('0dte_status', 'N/A')
-                                    }
-                                elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
-                                    current_position = {
-                                        'direction': 'SHORT',
-                                        'entry_price': current_price,
-                                        'entry_time': idx,
-                                        'signal_confidence': signal.get('confidence', 'N/A'),
-                                        'signal_reason': signal.get('reason', 'N/A'),
-                                        '0dte_permission': regime.get('0dte_status', 'N/A')
-                                    }
+                                else:
+                                    # Shares mode: Original logic
+                                    if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                        current_position = {
+                                            'direction': 'LONG',
+                                            'entry_price': current_price,
+                                            'entry_time': idx,
+                                            'signal_confidence': signal.get('confidence', 'N/A'),
+                                            'signal_reason': signal.get('reason', 'N/A'),
+                                            '0dte_permission': regime.get('0dte_status', 'N/A')
+                                        }
+                                    elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
+                                        current_position = {
+                                            'direction': 'SHORT',
+                                            'entry_price': current_price,
+                                            'entry_time': idx,
+                                            'signal_confidence': signal.get('confidence', 'N/A'),
+                                            'signal_reason': signal.get('reason', 'N/A'),
+                                            '0dte_permission': regime.get('0dte_status', 'N/A')
+                                        }
                         
                         # Record equity
                         equity_curve.append({

@@ -66,6 +66,7 @@ BACKTEST_OPTIONS_TP_PCT = 0.20  # Take profit: 20%
 BACKTEST_OPTIONS_SL_PCT = 0.10  # Stop loss: 10%
 BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts
 BACKTEST_RISK_FREE_RATE = 0.045 # 4.5% annual risk-free rate
+BACKTEST_REENTRY_COOLDOWN_MINUTES = 30  # Wait 30 min after stop loss before re-entering same direction
 
 # Auto-refresh
 AUTO_REFRESH_ENABLED = True

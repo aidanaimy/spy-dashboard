@@ -125,8 +125,17 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
         direction = base_signal.get('direction', 'NONE')
         confidence = base_signal.get('confidence', 'LOW')
         reason = base_signal.get('reason', '')
+        permission = regime.get('0dte_status', 'AVOID')
         
-        # Filter 1: Only allow HIGH confidence signals for options
+        # Filter 1: Only allow FAVORABLE days for options (block CAUTION and AVOID)
+        if permission != 'FAVORABLE':
+            return {
+                'direction': 'NONE',
+                'confidence': 'LOW',
+                'reason': f"{reason}; Options mode: requires FAVORABLE permission (current: {permission})"
+            }
+        
+        # Filter 2: Only allow HIGH confidence signals for options
         if confidence != 'HIGH':
             return {
                 'direction': 'NONE',
@@ -134,7 +143,7 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
                 'reason': f"{reason}; Options mode: requires HIGH confidence (current: {confidence})"
             }
         
-        # Filter 2: Require minimum move (1%+) for options
+        # Filter 3: Require minimum move (1%+) for options
         if abs(return_5) < 0.01:
             return {
                 'direction': 'NONE',
@@ -142,7 +151,7 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
                 'reason': f"{reason}; Options mode: requires 1%+ move (current: {return_5*100:.2f}%)"
             }
         
-        # Filter 3: Require minimum IV (12%) for options
+        # Filter 4: Require minimum IV (12%) for options
         if iv_context:
             atm_iv = iv_context.get('atm_iv')
             if atm_iv is not None and atm_iv < 12:
