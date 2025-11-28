@@ -5,9 +5,14 @@ Option implied volatility context via yfinance and Alpaca.
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 import logging
+import os
 
 import numpy as np
 import yfinance as yf
+
+# Disable yfinance caching to avoid "unable to open database file" on Streamlit Cloud
+# Streamlit Cloud has read-only filesystem restrictions
+os.environ['YF_CACHE_DISABLE'] = '1'
 
 # Set up logging
 logger = logging.getLogger(__name__)
