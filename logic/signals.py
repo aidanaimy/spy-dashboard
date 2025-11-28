@@ -167,6 +167,7 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
 def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[Dict], market_phase: Optional[Dict]) -> Dict:
     """
     Adjust signal confidence based on regime permission and IV context.
+    NOTE: Does NOT upgrade signals that were downgraded by time filters.
     """
     direction = signal.get('direction', 'NONE')
     confidence = signal.get('confidence', 'LOW')
@@ -179,7 +180,14 @@ def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[D
             'confidence': 'LOW',
             'reason': f"{reason}; 0DTE AVOID (choppy)"
         }
-    elif permission == 'FAVORABLE' and confidence == 'MEDIUM':
+    
+    # Only upgrade MEDIUM → HIGH if it's NOT from a time penalty
+    # Check if "Afternoon transition" or other time penalty is in the reason
+    has_time_penalty = any(phrase in reason for phrase in [
+        'Afternoon transition', 'Early open volatility', 'Afternoon drift'
+    ])
+    
+    if permission == 'FAVORABLE' and confidence == 'MEDIUM' and not has_time_penalty:
         confidence = 'HIGH'
         reason = f"{reason}; 0DTE FAVORABLE (volatile)"
 
