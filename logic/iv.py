@@ -4,9 +4,13 @@ Option implied volatility context via yfinance and Alpaca.
 
 from typing import Dict, Optional
 from datetime import datetime, timedelta
+import logging
 
 import numpy as np
 import yfinance as yf
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Try to import Alpaca for VIX data
 try:
@@ -56,7 +60,7 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_rank = None
     vix_percentile = None
 
-    print(f"[IV FETCH] Starting VIX fetch, ALPACA_AVAILABLE={ALPACA_AVAILABLE}")
+    logger.info(f"[IV FETCH] Starting VIX fetch, ALPACA_AVAILABLE={ALPACA_AVAILABLE}")
     
     # Try Alpaca first for VIX data (more reliable on Streamlit Cloud)
     if ALPACA_AVAILABLE:
