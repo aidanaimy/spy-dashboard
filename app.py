@@ -3,6 +3,10 @@ Main Streamlit app for SPY small-DTE trading dashboard.
 """
 
 import os
+
+# Disable yfinance caching BEFORE any imports to avoid database file errors on Streamlit Cloud
+os.environ['YF_CACHE_DISABLE'] = '1'
+
 from datetime import datetime, timedelta, time
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo
