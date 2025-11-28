@@ -20,7 +20,7 @@ GAP_LARGE_THRESHOLD = 0.01   # 1.0%
 # Range thresholds (as percentage of open)
 RANGE_LOW_THRESHOLD = 0.005   # 0.5%
 RANGE_NORMAL_THRESHOLD = 0.015  # 1.5%
-RANGE_HIGH_THRESHOLD = 0.025   # 2.5%
+RANGE_HIGH_THRESHOLD = 0.015   # 1.5% (lowered from 2.5% to catch trending days earlier)
 
 # Intraday settings
 INTRADAY_INTERVAL = "5m"  # yfinance interval: 1m, 5m, 15m, etc.
