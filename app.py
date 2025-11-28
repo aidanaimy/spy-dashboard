@@ -1124,19 +1124,29 @@ def render_backtest():
     
     col1, col2 = st.columns(2)
     
+    # Initialize default dates in session state if not present
+    if 'backtest_start_default' not in st.session_state:
+        st.session_state.backtest_start_default = datetime.now().date() - timedelta(days=30)
+    if 'backtest_end_default' not in st.session_state:
+        st.session_state.backtest_end_default = datetime.now().date()
+    
     with col1:
         start_date = st.date_input(
             "Start Date",
-            value=datetime.now().date() - timedelta(days=30),
+            value=st.session_state.backtest_start_default,
             key="backtest_start_input"
         )
     
     with col2:
         end_date = st.date_input(
             "End Date",
-            value=datetime.now().date(),
+            value=st.session_state.backtest_end_default,
             key="backtest_end_input"
         )
+    
+    # Update session state with user selections
+    st.session_state.backtest_start_default = start_date
+    st.session_state.backtest_end_default = end_date
     
     if st.button("🚀 Run Backtest", type="primary"):
         if start_date >= end_date:
@@ -1145,6 +1155,7 @@ def render_backtest():
         
         with st.spinner("Running backtest... This may take a few minutes."):
             try:
+                print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}")
                 engine = BacktestEngine()
                 results = engine.run_backtest(
                     datetime.combine(start_date, datetime.min.time()),
@@ -1185,9 +1196,7 @@ def render_backtest():
                     st.warning(f"⚠️ {debug['days_skipped']} days were skipped (likely no intraday data available)")
         
         # Display results with minimal spacing
-        st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)
         st.subheader("Backtest Results")
-        # Remove any empty divs or spacing here
         metrics_html = textwrap.dedent(
             f"""
             <div class="metric-grid" style="margin-top:1rem;">
@@ -1215,11 +1224,9 @@ def render_backtest():
             """
         )
         st.markdown(metrics_html, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
         
         # Time-of-day performance analysis
         if 'time_analysis' in results and results['time_analysis']:
-            st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
             st.subheader("⏰ Performance by Time of Day")
             
             time_data = results['time_analysis']
@@ -1247,14 +1254,12 @@ def render_backtest():
                 with col2:
                     st.error(f"❌ **Worst Period**: {worst_period[0]} - ${worst_period[1]['total_pnl']:.2f} P/L ({worst_period[1]['trades']} trades)")
             
-            st.markdown("</div>", unsafe_allow_html=True)
+
         
         if not results['equity_curve'].empty:
-            st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
             st.subheader("Equity Curve")
             fig = plot_equity_curve(results['equity_curve'])
             st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
         
         # Trades table
         if 'trades' in results:
@@ -1269,7 +1274,6 @@ def render_backtest():
                 trades_df = trades_data
             
             if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
-                st.markdown("<div class='dashboard-section' style='margin-top:1.5rem;'>", unsafe_allow_html=True)
                 st.subheader("Trades")
                 trades_html = trades_df.to_html(
                     classes="styled-table",
@@ -1278,7 +1282,6 @@ def render_backtest():
                     justify="center"
                 )
                 st.markdown(trades_html, unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
