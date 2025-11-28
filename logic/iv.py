@@ -60,19 +60,15 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_rank = None
     vix_percentile = None
 
-    logger.info(f"[IV FETCH] Starting VIX fetch, ALPACA_AVAILABLE={ALPACA_AVAILABLE}")
-    
     # Try Alpaca first for VIX data (more reliable on Streamlit Cloud)
     if ALPACA_AVAILABLE:
         try:
             api = get_alpaca_api()
-            print(f"[IV FETCH] Alpaca API initialized: {api is not None}")
             if api is not None:
                 # Fetch VIX daily data from Alpaca
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=lookback_days + 30)
                 
-                print(f"[IV FETCH] Fetching Alpaca VIX from {start_date.date()} to {end_date.date()}")
                 bar_set = api.get_bars(
                     'VIX',
                     '1Day',
@@ -82,7 +78,6 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                 )
                 
                 bars = bar_set.df
-                print(f"[IV FETCH] Alpaca returned {len(bars)} bars")
                 if not bars.empty:
                     # Get last valid VIX close (skip if zero/invalid)
                     valid_closes = bars['close'][bars['close'] > 0]
@@ -93,19 +88,14 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                         if vix_max > vix_min:
                             vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
                         vix_percentile = float((valid_closes <= vix_level).mean())
-                        print(f"[IV FETCH] ✓ Alpaca VIX success: {vix_level:.2f}")
         except Exception as e:
-            # Log error for debugging on Streamlit Cloud
-            print(f"[IV FETCH] ✗ Alpaca VIX fetch failed: {str(e)}")
             pass  # Fall through to yfinance fallback
     
     # Fallback to yfinance if Alpaca didn't work
     if vix_level is None:
-        print(f"[IV FETCH] Trying yfinance fallback...")
         try:
             vix = yf.Ticker("^VIX")
             hist = vix.history(period=f"{lookback_days}d")
-            print(f"[IV FETCH] yfinance returned {len(hist)} days")
             if not hist.empty:
                 # Get last valid VIX close (skip if zero/invalid)
                 valid_closes = hist['Close'][hist['Close'] > 0]
@@ -116,10 +106,7 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                     if vix_max > vix_min:
                         vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
                     vix_percentile = float((valid_closes <= vix_level).mean())
-                    print(f"[IV FETCH] ✓ yfinance VIX success: {vix_level:.2f}")
         except Exception as e:
-            # Log error for debugging on Streamlit Cloud
-            print(f"[IV FETCH] ✗ yfinance VIX fetch failed: {str(e)}")
             pass  # Continue to final fallback
     
     # Final fallback: Use ATM IV as proxy if both sources failed

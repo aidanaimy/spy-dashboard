@@ -791,10 +791,6 @@ def render_dashboard():
         return f"<p><strong>{vibe} volatility:</strong> {' '.join(detail)}</p>"
 
     iv_body_parts = []
-    
-    # Debug: Show raw IV context
-    st.code(f"DEBUG iv_context: {iv_context}")
-    
     atm_iv = iv_context.get('atm_iv')
     if atm_iv is not None:
         expiry = iv_context.get('expiry', 'N/A')
