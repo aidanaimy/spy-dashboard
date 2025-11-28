@@ -34,7 +34,8 @@ def get_alpaca_credentials():
             base_url = st.secrets.get('ALPACA_BASE_URL', 'https://data.alpaca.markets/v2')
             if key and secret:
                 return key, secret, base_url
-    except (ImportError, AttributeError, RuntimeError):
+    except Exception:
+        # Catch any error from Streamlit secrets (FileNotFound, KeyError, etc.)
         pass
     
     # Fall back to environment variables

@@ -13,12 +13,20 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Try Alpaca first, fallback to yfinance
+# Try Alpaca first, fallback to yfinance
+DATA_SOURCE = "yfinance"
 try:
     from data.alpaca_client import get_daily_data, get_intraday_data, get_alpaca_api
-    if get_alpaca_api() is None:
+    if get_alpaca_api() is not None:
+        DATA_SOURCE = "alpaca"
+        print("✅ Backtest Engine: Using Alpaca data source")
+    else:
+        print("⚠️ Backtest Engine: Alpaca API not initialized, falling back to yfinance")
         raise ImportError("Alpaca API not initialized")
-except (ImportError, AttributeError):
+except (ImportError, AttributeError) as e:
+    print(f"⚠️ Backtest Engine: Could not load Alpaca ({e}), falling back to yfinance")
     from data.yfinance_client import get_daily_data, get_intraday_data
+
 from logic.regime import analyze_regime
 from logic.intraday import analyze_intraday
 from logic.signals import generate_signal
