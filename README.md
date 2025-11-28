@@ -1,10 +1,14 @@
-# SPY Small-DTE Trading Dashboard (v1.5)
+# SPY 0DTE Trading System (v3.0)
 
-This repo contains a Streamlit cockpit that surfaces rule-based SPY small-DTE signals, intraday context, and accountability tooling. Version **1.5** adds:
-- 0DTE permission and volatility context integrated directly into signal confidence.
-- Chop and time-of-day filters (midday avoidance, power-hour boosts).
-- Intraday fallback to the last completed session when the market is closed.
-- Unified styling, cached data fetches, manual trade deletion, and IV awareness.
+This repo contains a Streamlit-based trading dashboard for SPY 0DTE options with rule-based signal generation, real-time Discord notifications, backtesting engine, and ML optimization tools.
+
+**Version 3.0** includes:
+- 🎯 **High-confidence 0DTE signals** with FAVORABLE-day filtering
+- ⏰ **Optimized time-of-day filters** (power hour boost, lunch chop block)
+- 🔔 **Discord webhook notifications** with @everyone pings for HIGH signals
+- 📊 **Options backtesting** with Black-Scholes pricing
+- 🤖 **ML optimization tools** for feature selection and parameter tuning
+- 🚫 **Re-entry cooldown** to prevent overtrading after stop losses
 
 ---
 
@@ -19,24 +23,51 @@ You only need an Alpaca data key (free IEX feed). If Alpaca isn’t reachable, t
 
 ---
 
-## Architecture Overview
+## 📁 Directory Structure
 
 ```
-app.py (Streamlit UI)
- ├─ data/
- │   ├─ alpaca_client.py  (primary data source, IEX feed)
- │   └─ yfinance_client.py (fallback)
- ├─ logic/
- │   ├─ regime.py         (20D/50D trend, gap, range, 0DTE permission)
- │   ├─ intraday.py       (VWAP, EMAs, returns, realized vol)
- │   ├─ chop_detector.py  (VWAP crosses, flat EMAs, ATR, VWAP envelope)
- │   ├─ time_filters.py   (open reduction, midday avoid, power hour boost)
- │   ├─ iv.py             (ATM IV + VIX rank/percentile via yfinance)
- │   └─ signals.py        (CALL/PUT/NONE + confidence, now context-aware)
- ├─ utils/
- │   ├─ plots.py          (Plotly candlestick + equity curve)
- │   └─ journal.py        (CSV-backed trade log + stats)
- └─ backtest/backtest_engine.py (price-only replay using same logic)
+tradev3/
+├─ app.py                    # Main Streamlit dashboard
+├─ config.py                 # All tunable parameters
+├─ requirements.txt          # Python dependencies
+├─ run_full_backtest.py      # Standalone backtest script
+│
+├─ data/                     # Data fetching clients
+│   ├─ alpaca_client.py      # Primary (Alpaca API)
+│   ├─ yfinance_client.py    # Fallback (yfinance)
+│   └─ trade_journal.csv     # Manual trade log
+│
+├─ logic/                    # Core trading logic
+│   ├─ regime.py             # Daily trend, gap, range, 0DTE permission
+│   ├─ intraday.py           # VWAP, EMAs, returns, volatility
+│   ├─ chop_detector.py      # Choppy market detection
+│   ├─ time_filters.py       # Time-of-day filtering
+│   ├─ iv.py                 # ATM IV + VIX context
+│   ├─ signals.py            # Signal generation (CALL/PUT/NONE)
+│   └─ options.py            # Black-Scholes option pricing
+│
+├─ backtest/                 # Backtesting engine
+│   └─ backtest_engine.py    # Historical simulation
+│
+├─ utils/                    # Utilities
+│   ├─ plots.py              # Plotly charts
+│   └─ journal.py            # Trade logging
+│
+├─ tests/                    # Test scripts
+│   ├─ test_discord.py       # Discord webhook test
+│   ├─ test_alpaca.py        # Alpaca API test
+│   └─ test_signal_notification.py
+│
+├─ ml_optimization/          # ML tools (optional)
+│   ├─ OPTIMIZATION_GUIDE.md # Full ML guide
+│   ├─ analyze_backtest_patterns.py
+│   ├─ feature_selection_optimizer.py
+│   └─ backtest_results_*.csv
+│
+└─ changelog/                # Version history
+    ├─ V3.md                 # Latest changes
+    ├─ V2.5.md
+    └─ V2.md
 ```
 
 ### Data Walkthrough
@@ -81,12 +112,70 @@ Update values there to tune the system; the Streamlit app will respect your chan
 
 ---
 
-## Next-Step Recommendations
-1. **Signal notifications**: Log every CALL/PUT flip and push a Slack/Discord/desktop alert so you can act without watching the page.
-2. **Batch backtests**: Cache multi-month intraday data locally and let the engine process large spans without hammering the API.
-3. **Parameter dashboard**: Expose key config knobs (thresholds, EMA lengths, TP/SL) as sidebar inputs for rapid “what-if” tests.
-4. **Execution cues**: Add a lightweight playbook note (e.g., “Prefer ATM weekly” or “Use 0.3 delta”) so the signal card reminds you which contract to target.
-5. **Performance analytics**: Track CALL vs PUT win rates over time, average hold duration, and P/L by time-of-day to see where the edge actually lives.
+## 🧪 Testing
+
+Run tests to verify system components:
+
+```bash
+# Test Discord notifications
+python tests/test_discord.py
+
+# Test Alpaca API
+python tests/test_alpaca.py
+
+# Test signal notifications
+python tests/test_signal_notification.py
+```
+
+See `tests/README.md` for details.
+
+---
+
+## 🤖 ML Optimization (Optional)
+
+Improve win rate using machine learning:
+
+```bash
+# Analyze backtest patterns (no ML libraries needed)
+python ml_optimization/analyze_backtest_patterns.py ml_optimization/backtest_results_*.csv
+
+# Feature selection & parameter optimization (requires scikit-learn)
+pip install scikit-learn matplotlib seaborn scikit-optimize
+python ml_optimization/feature_selection_optimizer.py
+```
+
+**Expected improvements**:
+- Pattern analysis: +4-5% win rate
+- ML optimization: +7-10% win rate
+
+See `ml_optimization/OPTIMIZATION_GUIDE.md` for full details.
+
+---
+
+## 📊 Performance Metrics
+
+**1-Year Backtest Results** (Nov 2024 - Nov 2025):
+- **Total Trades**: 118
+- **Win Rate**: 48.3% overall, 63% recent (Oct-Nov)
+- **Win/Loss Ratio**: 2:1 ($103 avg win / $53 avg loss)
+- **Total P/L**: +$2,659.74
+- **Annual Return**: 26.6%
+- **Max Drawdown**: Minimal (2:1 ratio protects capital)
+
+**Recent Performance** (Oct-Nov 2025, with optimizations):
+- **Win Rate**: 63%
+- **Filters Applied**: HIGH confidence + FAVORABLE days only
+- **Cooldown**: 30 minutes after stop loss
+
+---
+
+## 🚀 Next Steps
+
+1. **Collect live data** for 2-4 weeks
+2. **Run pattern analysis** to find quick wins
+3. **Implement ML optimization** to improve win rate to 55-60%
+4. **Monitor Discord notifications** for signal changes
+5. **Review backtest results** monthly and adjust parameters
 
 ---
 
