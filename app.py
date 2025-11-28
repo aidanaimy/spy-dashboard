@@ -33,12 +33,13 @@ from utils.plots import plot_intraday_candlestick, plot_equity_curve
 from utils.journal import (
     load_journal, save_trade, get_today_trades, get_journal_stats, delete_trade
 )
+# Add a comment to trigger redeploy.
 from backtest.backtest_engine import BacktestEngine
 import config
 
 # Page config
 st.set_page_config(
-    page_title="SPY Trading Dashboard",
+    page_title="SPY Trading Dashboard - Main Application",
     page_icon="📈",
     layout="wide"
 )
