@@ -1168,11 +1168,12 @@ def render_backtest():
         
         # Show date range and mode
         mode_text = "Options Mode (Black-Scholes)" if use_options_mode else "Shares Mode"
-        st.info(f"📅 Backtest Period: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date} | Mode: {mode_text}")
+        st.markdown(f"📅 **Backtest Period**: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date} | **Mode**: {mode_text}")
         
         # Show debug info if available
         if 'debug_info' in results:
             debug = results['debug_info']
+            # Use a cleaner expander without extra spacing
             with st.expander("🔍 Debug Information"):
                 st.write(f"**Days Processed:** {debug.get('days_processed', 0)}")
                 st.write(f"**Days Skipped:** {debug.get('days_skipped', 0)}")
@@ -1181,7 +1182,7 @@ def render_backtest():
                 if debug.get('days_skipped', 0) > 0:
                     st.warning(f"⚠️ {debug['days_skipped']} days were skipped (likely no intraday data available)")
         
-        # Display results
+        # Display results with minimal spacing
         st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)
         st.subheader("Backtest Results")
         metrics_html = textwrap.dedent(
