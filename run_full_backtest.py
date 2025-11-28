@@ -27,7 +27,7 @@ def run_full_backtest():
     # yfinance has ~60 days of 5-minute data
     # Alpaca free tier has ~2 years of data
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=60)  # Conservative estimate for yfinance
+    start_date = end_date - timedelta(days=365)  # Try 1 year
     
     print(f"📅 Backtest Period: {start_date.date()} to {end_date.date()}")
     print(f"📊 Mode: Options (Black-Scholes)")
