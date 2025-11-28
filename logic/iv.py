@@ -1,5 +1,5 @@
 """
-Option implied volatility context via yfinance.
+Option implied volatility context via yfinance and Alpaca.
 """
 
 from typing import Dict, Optional
@@ -7,6 +7,14 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import yfinance as yf
+
+# Try to import Alpaca for VIX data
+try:
+    from data.alpaca_client import get_alpaca_api
+    ALPACA_AVAILABLE = True
+except ImportError:
+    ALPACA_AVAILABLE = False
+    get_alpaca_api = None
 
 
 def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 252) -> Dict[str, Optional[float]]:
@@ -48,18 +56,52 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_rank = None
     vix_percentile = None
 
-    try:
-        vix = yf.Ticker("^VIX")
-        hist = vix.history(period=f"{lookback_days}d")
-        if not hist.empty:
-            vix_level = float(hist['Close'].iloc[-1])
-            vix_min = float(hist['Close'].min())
-            vix_max = float(hist['Close'].max())
-            if vix_max > vix_min:
-                vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
-            vix_percentile = float((hist['Close'] <= vix_level).mean())
-    except Exception:
-        # Fallback: Use ATM IV as proxy for VIX if VIX fetch fails
+    # Try Alpaca first for VIX data (more reliable on Streamlit Cloud)
+    if ALPACA_AVAILABLE:
+        try:
+            api = get_alpaca_api()
+            if api is not None:
+                # Fetch VIX daily data from Alpaca
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=lookback_days + 30)
+                
+                bar_set = api.get_bars(
+                    'VIX',
+                    '1Day',
+                    start=start_date.strftime('%Y-%m-%d'),
+                    end=end_date.strftime('%Y-%m-%d'),
+                    adjustment='raw'
+                )
+                
+                bars = bar_set.df
+                if not bars.empty:
+                    # Get latest VIX level
+                    vix_level = float(bars['close'].iloc[-1])
+                    vix_min = float(bars['close'].min())
+                    vix_max = float(bars['close'].max())
+                    if vix_max > vix_min:
+                        vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
+                    vix_percentile = float((bars['close'] <= vix_level).mean())
+        except Exception:
+            pass  # Fall through to yfinance fallback
+    
+    # Fallback to yfinance if Alpaca didn't work
+    if vix_level is None:
+        try:
+            vix = yf.Ticker("^VIX")
+            hist = vix.history(period=f"{lookback_days}d")
+            if not hist.empty:
+                vix_level = float(hist['Close'].iloc[-1])
+                vix_min = float(hist['Close'].min())
+                vix_max = float(hist['Close'].max())
+                if vix_max > vix_min:
+                    vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
+                vix_percentile = float((hist['Close'] <= vix_level).mean())
+        except Exception:
+            pass  # Continue to final fallback
+    
+    # Final fallback: Use ATM IV as proxy if both sources failed
+    if vix_level is None:
         if atm_iv is not None and atm_iv > 0:
             vix_level = atm_iv  # Use ATM IV as VIX proxy
             vix_rank = 0.5  # Assume middle of range
