@@ -378,13 +378,17 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
 
     if minutes < 9 * 60 + 30:
         return {"label": "Pre-Market", "is_open": False}
-    if within(9, 30, 11, 0):
-        return {"label": "Open Drive", "is_open": True}
-    if within(11, 0, 13, 30):
-        return {"label": "Midday", "is_open": True}
-    if within(13, 30, 14, 30):
-        return {"label": "Afternoon Drift", "is_open": True}
-    if within(14, 30, 15, 30):
+    if within(9, 30, 9, 45):
+        return {"label": "Early Open", "is_open": False}
+    if within(9, 45, 10, 30):
+        return {"label": "Morning Drive", "is_open": True}
+    if within(10, 30, 11, 45):
+        return {"label": "Mid-Morning Trend", "is_open": True}
+    if within(11, 45, 13, 30):
+        return {"label": "Lunch Chop", "is_open": False}  # BLOCKED
+    if within(13, 30, 14, 15):
+        return {"label": "Afternoon Wake-up", "is_open": True}
+    if within(14, 15, 15, 30):
         return {"label": "Power Hour", "is_open": True}
     return {"label": "After Hours", "is_open": False}
 

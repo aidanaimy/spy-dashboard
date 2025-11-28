@@ -1,5 +1,6 @@
 """
 Time-of-day filtering logic for signal quality improvement.
+Updated based on optimal trading windows.
 """
 
 from datetime import datetime
@@ -19,25 +20,46 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
     """
     time_str = current_time.strftime('%H:%M')
     
-    # Check if in afternoon drift period (13:00-14:30) - BLOCK entries (worst performing period)
-    if config.AFTERNOON_DRIFT_START <= time_str < config.AFTERNOON_DRIFT_END:
+    # === 🟥 RED ZONES (Blocked/High Caution) ===
+    
+    # 1. Pre-Market (< 9:45) - Blocked
+    if time_str < config.SESSION_START:
         return {
             'allow_trade': False,
             'confidence_multiplier': 0.0,
-            'reason': 'Afternoon drift period (13:00-14:30) - blocked due to poor historical performance'
+            'reason': 'Pre-market period - trading blocked'
         }
-    
-    # Check if in lunch period (12:00-1:00) - reduce confidence instead of blocking
-    # Chop detector will catch actual choppy conditions, but we reduce confidence
-    # for this known lower-quality period
-    if config.AVOID_TRADE_START <= time_str < config.AVOID_TRADE_END:
+        
+    # 2. Lunch Chop (11:45 - 13:30) - BLOCKED (previously reduced confidence)
+    # User requested block for lunch chop
+    if config.LUNCH_CHOP_START <= time_str < config.LUNCH_CHOP_END:
         return {
-            'allow_trade': True,
-            'confidence_multiplier': 0.6,  # Reduce confidence by 40%
-            'reason': 'Lunch period (12:00-1:00) - reduced confidence (chop detector handles actual chop)'
+            'allow_trade': False,
+            'confidence_multiplier': 0.0,
+            'reason': 'Lunch Chop (11:45-1:30) - blocked due to chop risk'
         }
-    
-    # Check if within first N minutes after open (reduce confidence)
+
+    # 3. Late Day Cutoff (>= 15:30) - Blocked
+    if time_str >= config.SESSION_END:
+        return {
+            'allow_trade': False,
+            'confidence_multiplier': 0.0,
+            'reason': 'Market close approaches - trading blocked'
+        }
+
+    # 4. Entry Block (>= 14:30) - Block NEW entries
+    # Note: This check logic is typically handled in backtest/live execution loop
+    # but good to signal here too for dashboard display
+    if time_str >= config.BLOCK_TRADE_AFTER:
+        return {
+            'allow_trade': False,  # No NEW trades
+            'confidence_multiplier': 0.0,
+            'reason': f'Late day entry block (after {config.BLOCK_TRADE_AFTER}) - 0DTE theta risk'
+        }
+
+    # === 🟨 YELLOW ZONES (Reduced Confidence) ===
+
+    # 1. Early Open Volatility (9:45 - 9:55)
     session_start_time = datetime.strptime(config.SESSION_START, '%H:%M').time()
     current_time_only = current_time.time()
     
@@ -51,30 +73,40 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
         return {
             'allow_trade': True,
             'confidence_multiplier': 0.5,  # Reduce confidence by 50%
-            'reason': f'First {config.REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES} min after open - reduced confidence'
+            'reason': 'Early open volatility (first 10m) - reduced confidence'
         }
-    
-    # Check if too close to market close - block trades
-    if time_str >= config.BLOCK_TRADE_AFTER:
-        return {
-            'allow_trade': False,
-            'confidence_multiplier': 0.0,
-            'reason': f'Too close to market close (at/after {config.BLOCK_TRADE_AFTER}) - avoid late-day trades'
+        
+    # 2. Afternoon Wake-up (13:45 - 14:15) - Transition window
+    # Note: Gap between 13:30 (Lunch end) and 13:45 is effectively "early afternoon" -> High Quality?
+    # Based on user prompt: 1:45 PM – 2:15 PM is the transition window.
+    # What about 1:30 PM - 1:45 PM? Assuming it falls into the post-lunch "High Quality" or transition?
+    # Let's align strictly with prompt: 1:45 - 2:15 is reduced.
+    if config.AFTERNOON_WAKEUP_START <= time_str < config.AFTERNOON_WAKEUP_END:
+         return {
+            'allow_trade': True,
+            'confidence_multiplier': 0.7,  # Reduce confidence by 30%
+            'reason': 'Afternoon transition (1:45-2:15) - reduced confidence'
         }
+
+    # === 🟩 GREEN ZONES (Full/Boosted Confidence) ===
     
-    # Check if in power hour (2:30-3:30) - increase confidence
-    if time_str >= config.POWER_HOUR_START:
+    # 1. Morning Drive (9:55 - 10:30) -> Handled by default (multiplier 1.0)
+    # 2. Mid-Morning Trend (10:30 - 11:45) -> Handled by default (multiplier 1.0)
+    
+    # 3. Power Hour / Afternoon Breakout (14:15 - 14:30)
+    # Note: Entries blocked after 14:30, so this boost applies to 14:15-14:30 window
+    if config.POWER_HOUR_START <= time_str < config.BLOCK_TRADE_AFTER:
         return {
             'allow_trade': True,
-            'confidence_multiplier': 1.2,  # Increase confidence by 20%
-            'reason': 'Power hour - increased confidence'
+            'confidence_multiplier': 1.2,  # Boost confidence by 20%
+            'reason': 'Afternoon breakout window - boosted confidence'
         }
-    
-    # Normal trading hours
+
+    # Default: High Quality / Normal Trading
     return {
         'allow_trade': True,
         'confidence_multiplier': 1.0,
-        'reason': 'Normal trading hours'
+        'reason': 'High quality trading window'
     }
 
 
@@ -125,4 +157,3 @@ def apply_time_filter(signal: Dict, current_time: datetime) -> Dict:
         'confidence': new_confidence,
         'reason': f"{signal.get('reason', '')}; {time_filter['reason']}"
     }
-

@@ -30,13 +30,22 @@ SESSION_START = "09:45"
 SESSION_END = "15:30"
 
 # Time-of-day filters
-AVOID_TRADE_START = "12:00"  # Start of lunch period (reduced confidence, not blocked)
-AVOID_TRADE_END = "13:00"    # End of lunch period
-AFTERNOON_DRIFT_START = "13:00"  # Afternoon drift period start (BLOCKED - worst performing period per backtest)
-AFTERNOON_DRIFT_END = "14:30"    # Afternoon drift period end (before power hour)
-POWER_HOUR_START = "14:30"   # Power hour start (historically strong moves, but theta risk for 0DTE)
-BLOCK_TRADE_AFTER = "14:30"  # Block all signals after this time (0DTE theta decay accelerates after 2:30 PM)
-REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES = 10  # Reduce confidence for first N minutes after open
+# Phase 1: Lunch Chop (11:45-13:30) - Reduced confidence or blocked
+LUNCH_CHOP_START = "11:45"
+LUNCH_CHOP_END = "13:30"
+
+# Phase 2: Afternoon Wake-up (13:45-14:15) - Reduced confidence
+AFTERNOON_WAKEUP_START = "13:45"
+AFTERNOON_WAKEUP_END = "14:15"
+
+# Phase 3: Power Hour (14:15-15:30) - Boosted confidence
+POWER_HOUR_START = "14:15" 
+
+# Block trades late in day
+BLOCK_TRADE_AFTER = "14:30"  # Block all NEW entries after this time (exits allowed)
+
+# Early open caution
+REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES = 10  # 9:45-9:55 reduced confidence
 
 # Chop detection parameters
 CHOP_VWAP_CROSSES_THRESHOLD = 3  # VWAP crosses in last hour
@@ -47,24 +56,17 @@ CHOP_VWAP_RANGE_THRESHOLD = 0.002  # Range inside VWAP ±0.2% = chop
 # Backtest parameters
 BACKTEST_TP_PCT = 0.007   # Take profit: 0.7% (for shares)
 BACKTEST_SL_PCT = 0.003   # Stop loss: 0.3% (for shares)
-BACKTEST_POSITION_SIZE = 1.0  # Fixed position size (units)
+BACKTEST_POSITION_SIZE = 100  # Number of shares
 
-# Options backtest parameters
-BACKTEST_OPTIONS_TP_PCT = 0.50  # Take profit: 50% of premium paid (for options)
-BACKTEST_OPTIONS_SL_PCT = 0.50  # Stop loss: 50% of premium paid (for options)
-BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts (each = 100 shares)
-BACKTEST_RISK_FREE_RATE = 0.05  # Risk-free rate (5% annual, for Black-Scholes)
+# Options Backtest parameters
+BACKTEST_OPTIONS_TP_PCT = 0.20  # Take profit: 20%
+BACKTEST_OPTIONS_SL_PCT = 0.10  # Stop loss: 10%
+BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts
+BACKTEST_RISK_FREE_RATE = 0.045 # 4.5% annual risk-free rate
 
-# Journal settings
+# Auto-refresh
+AUTO_REFRESH_ENABLED = True
+AUTO_REFRESH_INTERVAL = 30000  # 30 seconds in ms
+
+# Data storage
 JOURNAL_FILE = "data/trade_journal.csv"
-
-# Data lookback (request more to account for weekends/holidays)
-# We need at least MA_LONG (50) trading days, so request ~80 calendar days
-DAILY_LOOKBACK_DAYS = 80
-
-# Auto-refresh settings
-AUTO_REFRESH_ENABLED = True  # Enable/disable auto-refresh
-AUTO_REFRESH_INTERVAL = 30000  # Refresh interval in milliseconds (30000 = 30 seconds)
-# Note: Alpaca free tier = 200 requests/min, paid = 1000 requests/min
-# With 30s refresh = 2 requests/min per page load (well within limits)
-
