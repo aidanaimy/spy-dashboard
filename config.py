@@ -10,6 +10,9 @@ SYMBOL = "SPY"
 MA_SHORT = 20
 MA_LONG = 50
 
+# Data Fetching
+DAILY_LOOKBACK_DAYS = 252  # Days of daily data to fetch
+
 # Gap thresholds (as percentage)
 GAP_SMALL_THRESHOLD = 0.002  # 0.2%
 GAP_LARGE_THRESHOLD = 0.01   # 1.0%
