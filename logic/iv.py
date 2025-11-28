@@ -91,12 +91,15 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
             vix = yf.Ticker("^VIX")
             hist = vix.history(period=f"{lookback_days}d")
             if not hist.empty:
-                vix_level = float(hist['Close'].iloc[-1])
-                vix_min = float(hist['Close'].min())
-                vix_max = float(hist['Close'].max())
-                if vix_max > vix_min:
-                    vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
-                vix_percentile = float((hist['Close'] <= vix_level).mean())
+                # Get last valid VIX close (skip if zero/invalid)
+                valid_closes = hist['Close'][hist['Close'] > 0]
+                if not valid_closes.empty:
+                    vix_level = float(valid_closes.iloc[-1])
+                    vix_min = float(valid_closes.min())
+                    vix_max = float(valid_closes.max())
+                    if vix_max > vix_min:
+                        vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
+                    vix_percentile = float((valid_closes <= vix_level).mean())
         except Exception:
             pass  # Continue to final fallback
     
