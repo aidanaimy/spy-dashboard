@@ -21,6 +21,9 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     Generate trading bias signal based on regime and intraday conditions.
     Now includes time-of-day filtering and chop detection.
     
+    This function is designed to be robust - it will never crash even if
+    optional parameters (iv_context, market_phase, etc.) are None or malformed.
+    
     Args:
         regime: Regime analysis dictionary from regime.py
         intraday: Intraday analysis dictionary from intraday.py
@@ -34,11 +37,20 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
         Dictionary with 'direction' ('CALL', 'PUT', 'NONE'), 
         'confidence' ('LOW', 'MEDIUM', 'HIGH'), and 'reason'
     """
-    trend = regime.get('trend', 'Mixed')
-    micro_trend = intraday.get('micro_trend', 'Neutral')
-    price = intraday.get('price', 0)
-    vwap = intraday.get('vwap', 0)
-    return_5 = intraday.get('return_5', 0)
+    # Safely extract values with defaults to prevent crashes
+    try:
+        trend = regime.get('trend', 'Mixed')
+        micro_trend = intraday.get('micro_trend', 'Neutral')
+        price = intraday.get('price', 0)
+        vwap = intraday.get('vwap', 0)
+        return_5 = intraday.get('return_5', 0)
+    except (AttributeError, TypeError):
+        # If regime or intraday are malformed, return safe default
+        return {
+            'direction': 'NONE',
+            'confidence': 'LOW',
+            'reason': 'Error: Invalid input data'
+        }
     
     # Initialize
     direction = "NONE"
