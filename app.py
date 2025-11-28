@@ -1127,13 +1127,15 @@ def render_backtest():
     with col1:
         start_date = st.date_input(
             "Start Date",
-            value=datetime.now().date() - timedelta(days=30)
+            value=datetime.now().date() - timedelta(days=30),
+            key="backtest_start_input"
         )
     
     with col2:
         end_date = st.date_input(
             "End Date",
-            value=datetime.now().date()
+            value=datetime.now().date(),
+            key="backtest_end_input"
         )
     
     if st.button("🚀 Run Backtest", type="primary"):

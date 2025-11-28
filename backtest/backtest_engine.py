@@ -106,39 +106,73 @@ class BacktestEngine:
         days_skipped = 0
         signals_generated = 0
         
+        # Batch fetch all intraday data if using Alpaca
+        full_intraday_df = pd.DataFrame()
+        if DATA_SOURCE == "alpaca":
+            print(f"🚀 Batch fetching intraday data from {start_date.date()} to {end_date.date()}...")
+            try:
+                # Add buffer to end date to ensure we get the last day
+                batch_end = end_date + timedelta(days=1)
+                full_intraday_df = get_intraday_data(
+                    config.SYMBOL,
+                    interval=config.INTRADAY_INTERVAL,
+                    start_date=start_date,
+                    end_date=batch_end
+                )
+                if not full_intraday_df.empty:
+                    # Ensure index is datetime
+                    full_intraday_df.index = pd.to_datetime(full_intraday_df.index)
+                    print(f"✅ Batch fetch successful: {len(full_intraday_df)} bars")
+            except Exception as e:
+                print(f"⚠️ Batch fetch failed: {e}. Falling back to daily fetch.")
+
         for day in trading_days:
             try:
                 # Get intraday data for this specific day
-                # Calculate start and end of trading day
-                # IMPORTANT: yfinance end_date is EXCLUSIVE, so we need to add 1 day to get all bars
-                day_start = datetime.combine(day.date(), datetime.min.time().replace(hour=9, minute=30))
-                day_end = datetime.combine(day.date(), datetime.min.time().replace(hour=16, minute=0)) + timedelta(days=1)
+                target_date = day.date()
                 
-                # Fetch intraday data for this specific day
-                try:
-                    intraday_df = get_intraday_data(
-                        config.SYMBOL,
-                        interval=config.INTRADAY_INTERVAL,
-                        start_date=day_start,
-                        end_date=day_end
-                    )
+                # Strategy 1: Slice from batch data (Alpaca optimization)
+                if not full_intraday_df.empty:
+                    if full_intraday_df.index.tz is not None:
+                        # For timezone-aware, extract date component properly
+                        mask = full_intraday_df.index.date == target_date
+                        intraday_df = full_intraday_df[mask].copy()
+                    else:
+                        # For timezone-naive
+                        mask = full_intraday_df.index.date == target_date
+                        intraday_df = full_intraday_df[mask].copy()
+                
+                # Strategy 2: Fetch daily (Fallback / yfinance)
+                else:
+                    # Calculate start and end of trading day
+                    # IMPORTANT: yfinance end_date is EXCLUSIVE, so we need to add 1 day to get all bars
+                    day_start = datetime.combine(day.date(), datetime.min.time().replace(hour=9, minute=30))
+                    day_end = datetime.combine(day.date(), datetime.min.time().replace(hour=16, minute=0)) + timedelta(days=1)
                     
-                    # Filter to this day (in case we got extra data)
-                    if not intraday_df.empty:
-                        intraday_df.index = pd.to_datetime(intraday_df.index)
-                        # Handle timezone-aware indices: get date properly for comparison
-                        target_date = day.date()
-                        if intraday_df.index.tz is not None:
-                            # For timezone-aware, extract date component properly
-                            intraday_df['_date'] = intraday_df.index.date
-                            intraday_df = intraday_df[intraday_df['_date'] == target_date].drop(columns=['_date'])
-                        else:
-                            # For timezone-naive, use date directly
-                            intraday_df = intraday_df[intraday_df.index.date == target_date]
-                except Exception as e:
-                    # If intraday not available for this day, skip it
-                    days_skipped += 1
-                    continue
+                    # Fetch intraday data for this specific day
+                    try:
+                        intraday_df = get_intraday_data(
+                            config.SYMBOL,
+                            interval=config.INTRADAY_INTERVAL,
+                            start_date=day_start,
+                            end_date=day_end
+                        )
+                        
+                        # Filter to this day (in case we got extra data)
+                        if not intraday_df.empty:
+                            intraday_df.index = pd.to_datetime(intraday_df.index)
+                            # Handle timezone-aware indices: get date properly for comparison
+                            if intraday_df.index.tz is not None:
+                                # For timezone-aware, extract date component properly
+                                intraday_df['_date'] = intraday_df.index.date
+                                intraday_df = intraday_df[intraday_df['_date'] == target_date].drop(columns=['_date'])
+                            else:
+                                # For timezone-naive, use date directly
+                                intraday_df = intraday_df[intraday_df.index.date == target_date]
+                    except Exception as e:
+                        # If intraday not available for this day, skip it
+                        days_skipped += 1
+                        continue
                 
                 if intraday_df.empty:
                     continue
