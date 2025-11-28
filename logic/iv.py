@@ -56,6 +56,7 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_level = None
     vix_rank = None
     vix_percentile = None
+    vix_source = None  # Track which source provided VIX data
 
     # Try yfinance for VIX data
     try:
@@ -71,12 +72,14 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                 if vix_max > vix_min:
                     vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
                 vix_percentile = float((valid_closes <= vix_level).mean())
+                vix_source = "yfinance"
     except Exception as e:
-        pass  # Continue to final fallback
+        vix_source = f"yfinance_error: {str(e)[:50]}"  # Store error for debugging
     
-    # Final fallback: Use ATM IV as proxy if both sources failed
+    # Final fallback: Use ATM IV as proxy if yfinance failed
     if vix_level is None:
         if atm_iv is not None and atm_iv > 0:
+            vix_source = "atm_iv_scaled"
             # ATM IV is typically lower than VIX, so scale it up
             # Typical relationship: VIX ≈ ATM IV * 80-100
             # Use conservative 85x multiplier
@@ -117,7 +120,8 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
         'expiry': expiry,
         'vix_level': vix_level,
         'vix_rank': vix_rank,
-        'vix_percentile': vix_percentile
+        'vix_percentile': vix_percentile,
+        'vix_source': vix_source  # Add source tracking for debugging
     }
 
 

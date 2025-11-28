@@ -805,9 +805,19 @@ def render_dashboard():
     vix_level = iv_context.get('vix_level')
     vix_rank = iv_context.get('vix_rank')
     vix_percentile = iv_context.get('vix_percentile')
+    vix_source = iv_context.get('vix_source', 'unknown')
 
     if vix_level is not None:
-        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}</div></div>")
+        # Add source indicator for debugging
+        source_indicator = ""
+        if vix_source == "atm_iv_scaled":
+            source_indicator = " <span style='font-size: 0.8em; color: #ffa500;'>(estimated)</span>"
+        elif vix_source.startswith("yfinance_error"):
+            source_indicator = f" <span style='font-size: 0.8em; color: #ff6b6b;'>(error: {vix_source.split(': ', 1)[1]})</span>"
+        elif vix_source == "yfinance":
+            source_indicator = " <span style='font-size: 0.8em; color: #51cf66;'>✓</span>"
+        
+        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level{source_indicator}</div><div class='value'>{vix_level:.2f}</div></div>")
         if vix_rank is not None:
             iv_body_parts.append(f"<div class='metric-card'><div class='label'>VIX Rank</div><div class='value'>{vix_rank*100:.0f}%</div></div>")
         if vix_percentile is not None:
