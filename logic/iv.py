@@ -118,22 +118,30 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
             vix_level = min(atm_iv * 85, 100.0)  # Cap at 100
             
             # Estimate rank/percentile based on VIX level
-            # VIX typically ranges 10-30, extremes 5-80
-            if vix_level < 12:
-                vix_rank = 0.1
-                vix_percentile = 0.2
-            elif vix_level < 15:
-                vix_rank = 0.25
-                vix_percentile = 0.35
+            # Historical VIX ranges: typical 10-30, extremes 5-80
+            # Using empirical distribution for more accurate estimates
+            
+            # VIX Rank (position within 52-week range)
+            # Assume typical range: min=10, max=35 for normal markets
+            vix_min_estimate = 10.0
+            vix_max_estimate = 35.0
+            vix_rank = max(0.0, min(1.0, (vix_level - vix_min_estimate) / (vix_max_estimate - vix_min_estimate)))
+            
+            # VIX Percentile (historical distribution)
+            # Based on long-term VIX statistics:
+            # 10th percentile ≈ 11, 25th ≈ 13, 50th ≈ 16, 75th ≈ 20, 90th ≈ 27
+            if vix_level < 11:
+                vix_percentile = 0.05
+            elif vix_level < 13:
+                vix_percentile = 0.10 + (vix_level - 11) / (13 - 11) * 0.15  # Linear interpolation
+            elif vix_level < 16:
+                vix_percentile = 0.25 + (vix_level - 13) / (16 - 13) * 0.25
             elif vix_level < 20:
-                vix_rank = 0.5
-                vix_percentile = 0.5
-            elif vix_level < 25:
-                vix_rank = 0.7
-                vix_percentile = 0.7
+                vix_percentile = 0.50 + (vix_level - 16) / (20 - 16) * 0.25
+            elif vix_level < 27:
+                vix_percentile = 0.75 + (vix_level - 20) / (27 - 20) * 0.15
             else:
-                vix_rank = 0.85
-                vix_percentile = 0.85
+                vix_percentile = min(0.95, 0.90 + (vix_level - 27) / 20 * 0.05)
         else:
             vix_level = None
             vix_rank = None
