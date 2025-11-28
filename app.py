@@ -697,11 +697,7 @@ def render_dashboard():
             # Fetch IV context
             try:
                 iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'])
-                # Debug: Log what we got
-                if iv_context:
-                    st.info(f"📊 IV Context: ATM={iv_context.get('atm_iv')}, VIX={iv_context.get('vix_level')}")
-            except Exception as e:
-                st.warning(f"⚠️ Failed to fetch IV context: {str(e)}")
+            except Exception:
                 iv_context = {}
             
     except Exception as e:
@@ -794,11 +790,6 @@ def render_dashboard():
 
     iv_body_parts = []
     atm_iv = iv_context.get('atm_iv')
-    
-    # Debug: Show what's actually in iv_context
-    if not iv_context:
-        st.warning("⚠️ IV context is empty")
-    
     if atm_iv is not None:
         expiry = iv_context.get('expiry', 'N/A')
         iv_body_parts.append(f"<div class='primary-value'>{atm_iv:.2f}%</div><p>ATM IV (exp {expiry})</p>")
@@ -808,10 +799,6 @@ def render_dashboard():
     vix_level = iv_context.get('vix_level')
     vix_rank = iv_context.get('vix_rank')
     vix_percentile = iv_context.get('vix_percentile')
-    
-    # Debug: Show VIX values
-    if vix_level is None:
-        st.warning(f"⚠️ VIX Level is None (ATM IV: {atm_iv})")
 
     if vix_level is not None:
         iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}</div></div>")
