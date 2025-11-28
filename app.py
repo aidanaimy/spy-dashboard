@@ -808,8 +808,8 @@ def render_dashboard():
     vix_change_pct = iv_context.get('vix_change_pct')
 
     if vix_level is not None:
-        # Add VIX change color indicator
-        vix_change_color = "#ff5f6d" if vix_change_pct and vix_change_pct > 0 else "#2bd47d" if vix_change_pct and vix_change_pct < 0 else "#8ea0bc"
+        # Add VIX change color indicator (green for +, red for -)
+        vix_change_color = "#2bd47d" if vix_change_pct and vix_change_pct > 0 else "#ff5f6d" if vix_change_pct and vix_change_pct < 0 else "#8ea0bc"
         vix_change_display = f" <span style='color:{vix_change_color};'>({vix_change_pct:+.2f}%)</span>" if vix_change_pct is not None else ""
         
         iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}{vix_change_display}</div></div>")
