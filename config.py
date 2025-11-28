@@ -37,8 +37,8 @@ SESSION_END = "15:30"
 LUNCH_CHOP_START = "11:45"
 LUNCH_CHOP_END = "13:30"
 
-# Phase 2: Afternoon Wake-up (13:45-14:15) - Reduced confidence
-AFTERNOON_WAKEUP_START = "13:45"
+# Phase 2: Afternoon Wake-up (13:30-14:15) - Reduced confidence
+AFTERNOON_WAKEUP_START = "13:30"  # Changed from 13:45 to match backtest buckets
 AFTERNOON_WAKEUP_END = "14:15"
 
 # Phase 3: Power Hour (14:15-15:30) - Boosted confidence
