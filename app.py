@@ -1228,10 +1228,26 @@ def render_backtest():
     st.session_state.backtest_start_default = start_date
     st.session_state.backtest_end_default = end_date
     
-    if st.button("🚀 Run Backtest", type="primary"):
+    col_btn1, col_btn2 = st.columns([3, 1])
+    
+    with col_btn1:
+        run_backtest = st.button("🚀 Run Backtest", type="primary")
+    
+    with col_btn2:
+        if st.button("🧹 Clear Results"):
+            if 'backtest_results' in st.session_state:
+                del st.session_state.backtest_results
+            st.success("Results cleared!")
+            st.rerun()
+    
+    if run_backtest:
         if start_date >= end_date:
             st.error("Start date must be before end date.")
             return
+        
+        # Clear data caches to ensure fresh data
+        get_cached_daily_data.clear()
+        get_cached_intraday_data.clear()
         
         # Create progress bar
         progress_bar = st.progress(0)
@@ -1243,15 +1259,19 @@ def render_backtest():
             status_text.text(status_message)
         
         try:
-            print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}")
-            status_text.text("Initializing backtest engine...")
+            print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}, options={use_options}")
+            status_text.text("Clearing caches and initializing backtest engine...")
             engine = BacktestEngine()
+            
+            status_text.text(f"Running backtest from {start_date} to {end_date}...")
             results = engine.run_backtest(
                 datetime.combine(start_date, datetime.min.time()),
                 datetime.combine(end_date, datetime.max.time()),
                 use_options=use_options,
                 progress_callback=update_progress
             )
+            
+            print(f"🚀 APP DEBUG: Backtest completed. Trades: {results.get('num_trades', 0)}, Win Rate: {results.get('win_rate', 0):.2%}")
             
             # Store results in session state to persist across reruns
             st.session_state.backtest_results = results
@@ -1262,11 +1282,15 @@ def render_backtest():
             # Clear progress indicators
             progress_bar.empty()
             status_text.empty()
+            
+            st.success(f"✅ Backtest complete! {results.get('num_trades', 0)} trades, {results.get('win_rate', 0):.1%} win rate")
             st.rerun()
             
         except Exception as e:
             st.error(f"Error running backtest: {str(e)}")
             st.exception(e)
+            import traceback
+            st.code(traceback.format_exc())
     
     # Display results if they exist in session state
     if 'backtest_results' in st.session_state:
