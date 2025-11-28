@@ -56,30 +56,40 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_level = None
     vix_rank = None
     vix_percentile = None
-    vix_source = None  # Track which source provided VIX data
+    vix_source = None
 
-    # Try yfinance for VIX data
+    # Try direct Yahoo Finance API call (more reliable than yfinance library)
     try:
-        vix = yf.Ticker("^VIX")
-        hist = vix.history(period=f"{lookback_days}d")
+        import requests
+        from datetime import datetime
         
-        if hist.empty:
-            vix_source = "yfinance_empty_hist"
-        else:
-            # Get last valid VIX close (skip if zero/invalid)
-            valid_closes = hist['Close'][hist['Close'] > 0]
-            if valid_closes.empty:
-                vix_source = f"yfinance_no_valid_closes (got {len(hist)} rows)"
-            else:
-                vix_level = float(valid_closes.iloc[-1])
-                vix_min = float(valid_closes.min())
-                vix_max = float(valid_closes.max())
+        # Get current VIX quote
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX"
+        params = {
+            'interval': '1d',
+            'range': '1y'
+        }
+        response = requests.get(url, params=params, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            result = data.get('chart', {}).get('result', [{}])[0]
+            
+            # Get historical closes for rank/percentile
+            closes = result.get('indicators', {}).get('quote', [{}])[0].get('close', [])
+            closes = [c for c in closes if c is not None and c > 0]
+            
+            if closes:
+                vix_level = float(closes[-1])
+                vix_min = float(min(closes))
+                vix_max = float(max(closes))
+                
                 if vix_max > vix_min:
                     vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
-                vix_percentile = float((valid_closes <= vix_level).mean())
-                vix_source = "yfinance"
-    except Exception as e:
-        vix_source = f"yfinance_error: {str(e)[:50]}"  # Store error for debugging
+                vix_percentile = float(sum(1 for c in closes if c <= vix_level) / len(closes))
+                vix_source = "yahoo_api"
+    except Exception:
+        pass  # Fall through to fallback
     
     # Final fallback: Use ATM IV as proxy if yfinance failed
     if vix_level is None:
