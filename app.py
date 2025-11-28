@@ -1355,7 +1355,7 @@ def render_backtest():
             fig = plot_equity_curve(results['equity_curve'])
             st.plotly_chart(fig, use_container_width=True)
         
-        # Trades table
+        # Trades table - Streamlined display with expandable details
         if 'trades' in results:
             trades_data = results['trades']
             # Handle both empty list and DataFrame cases
@@ -1368,14 +1368,97 @@ def render_backtest():
                 trades_df = trades_data
             
             if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
-                st.subheader("Trades")
-                trades_html = trades_df.to_html(
+                st.subheader(f"Trades ({len(trades_df)} total)")
+                
+                # Create summary view
+                summary_df = trades_df.copy()
+                
+                # Format times
+                summary_df['entry_time'] = pd.to_datetime(summary_df['entry_time']).dt.strftime('%m/%d %H:%M')
+                summary_df['exit_time'] = pd.to_datetime(summary_df['exit_time']).dt.strftime('%m/%d %H:%M')
+                
+                # Format prices
+                if 'entry_underlying' in summary_df.columns:
+                    # Options mode
+                    summary_df['entry'] = summary_df.apply(
+                        lambda x: f"${x['entry_underlying']:.2f} (${x['entry_price']:.2f})", axis=1
+                    )
+                    summary_df['exit'] = summary_df.apply(
+                        lambda x: f"${x['exit_underlying']:.2f} (${x['exit_price']:.2f})", axis=1
+                    )
+                else:
+                    # Shares mode
+                    summary_df['entry'] = summary_df['entry_price'].apply(lambda x: f"${x:.2f}")
+                    summary_df['exit'] = summary_df['exit_price'].apply(lambda x: f"${x:.2f}")
+                
+                # Format P/L with color
+                summary_df['pnl_display'] = summary_df['pnl'].apply(
+                    lambda x: f"<span style='color: {'#00ff00' if x > 0 else '#ff4444'};'>${x:+.2f}</span>"
+                )
+                
+                # Add win/loss indicator
+                summary_df['result'] = summary_df['pnl'].apply(lambda x: '✅ WIN' if x > 0 else '❌ LOSS')
+                
+                # Create display columns
+                display_cols = ['entry_time', 'direction', 'confidence', '0dte_permission', 
+                               'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
+                
+                # Rename for display
+                display_df = summary_df[display_cols].copy()
+                display_df.columns = ['Entry Time', 'Direction', 'Confidence', '0DTE', 
+                                     'Entry', 'Exit', 'Exit', 'P/L', 'Result']
+                
+                # Display summary table
+                st.markdown(display_df.to_html(
                     classes="styled-table",
                     index=False,
                     border=0,
-                    justify="center"
-                )
-                st.markdown(trades_html, unsafe_allow_html=True)
+                    escape=False
+                ), unsafe_allow_html=True)
+                
+                # Expandable details for each trade
+                st.markdown("---")
+                st.markdown("### 📋 Trade Details")
+                
+                for idx, trade in trades_df.iterrows():
+                    # Determine color based on P/L
+                    pnl_color = "#00ff00" if trade['pnl'] > 0 else "#ff4444"
+                    result_emoji = "✅" if trade['pnl'] > 0 else "❌"
+                    
+                    # Create expander title
+                    entry_time_str = pd.to_datetime(trade['entry_time']).strftime('%m/%d %H:%M')
+                    title = f"{result_emoji} Trade #{idx+1}: {trade['direction']} @ {entry_time_str} | P/L: ${trade['pnl']:+.2f}"
+                    
+                    with st.expander(title, expanded=False):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**📊 Trade Info**")
+                            st.write(f"**Direction:** {trade['direction']}")
+                            st.write(f"**Confidence:** {trade.get('confidence', 'N/A')}")
+                            st.write(f"**0DTE Permission:** {trade.get('0dte_permission', 'N/A')}")
+                            st.write(f"**Exit Reason:** {trade['exit_reason']}")
+                            
+                            if 'strike' in trade and pd.notna(trade['strike']):
+                                st.write(f"**Strike:** ${trade['strike']:.2f}")
+                        
+                        with col2:
+                            st.markdown("**💰 Prices & P/L**")
+                            if 'entry_underlying' in trade and pd.notna(trade['entry_underlying']):
+                                st.write(f"**Entry SPY:** ${trade['entry_underlying']:.2f}")
+                                st.write(f"**Entry Option:** ${trade['entry_price']:.2f}")
+                                st.write(f"**Exit SPY:** ${trade['exit_underlying']:.2f}")
+                                st.write(f"**Exit Option:** ${trade['exit_price']:.2f}")
+                            else:
+                                st.write(f"**Entry:** ${trade['entry_price']:.2f}")
+                                st.write(f"**Exit:** ${trade['exit_price']:.2f}")
+                            
+                            st.markdown(f"**P/L:** <span style='color: {pnl_color}; font-size: 1.2em; font-weight: bold;'>${trade['pnl']:+.2f}</span>", unsafe_allow_html=True)
+                        
+                        # Signal reason (full width)
+                        if 'reason' in trade and pd.notna(trade['reason']) and trade['reason'] != 'N/A':
+                            st.markdown("**🎯 Signal Reason:**")
+                            st.info(trade['reason'])
 
 if __name__ == "__main__":
     main()

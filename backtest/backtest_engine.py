@@ -461,7 +461,10 @@ class BacktestEngine:
                                         'exit_underlying': current_price,
                                         'pnl': pnl,
                                         'exit_reason': exit_reason,
-                                        'strike': strike
+                                        'strike': strike,
+                                        'confidence': current_position.get('signal_confidence', 'N/A'),
+                                        'reason': current_position.get('signal_reason', 'N/A'),
+                                        '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                     })
                                     
                                     current_position = None
@@ -499,7 +502,10 @@ class BacktestEngine:
                                         'entry_price': entry_price,
                                         'exit_price': current_price,
                                         'pnl': pnl,
-                                        'exit_reason': exit_reason
+                                        'exit_reason': exit_reason,
+                                        'confidence': current_position.get('signal_confidence', 'N/A'),
+                                        'reason': current_position.get('signal_reason', 'N/A'),
+                                        '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                     })
                                     
                                     current_position = None
@@ -540,7 +546,10 @@ class BacktestEngine:
                                         'entry_option_price': entry_option_price,
                                         'entry_time': idx,
                                         'strike': strike,
-                                        'entry_iv': sigma
+                                        'entry_iv': sigma,
+                                        'signal_confidence': signal.get('confidence', 'N/A'),
+                                        'signal_reason': signal.get('reason', 'N/A'),
+                                        '0dte_permission': regime.get('0dte_status', 'N/A')
                                     }
                                 elif signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
                                     # Options mode: Only enter on HIGH confidence (filtered by options_mode)
@@ -574,7 +583,10 @@ class BacktestEngine:
                                         'entry_option_price': entry_option_price,
                                         'entry_time': idx,
                                         'strike': strike,
-                                        'entry_iv': sigma
+                                        'entry_iv': sigma,
+                                        'signal_confidence': signal.get('confidence', 'N/A'),
+                                        'signal_reason': signal.get('reason', 'N/A'),
+                                        '0dte_permission': regime.get('0dte_status', 'N/A')
                                     }
                             else:
                                 # Shares mode: Original logic
@@ -582,13 +594,19 @@ class BacktestEngine:
                                     current_position = {
                                         'direction': 'LONG',
                                         'entry_price': current_price,
-                                        'entry_time': idx
+                                        'entry_time': idx,
+                                        'signal_confidence': signal.get('confidence', 'N/A'),
+                                        'signal_reason': signal.get('reason', 'N/A'),
+                                        '0dte_permission': regime.get('0dte_status', 'N/A')
                                     }
                                 elif signal['direction'] == 'PUT' and signal['confidence'] in ['MEDIUM', 'HIGH']:
                                     current_position = {
                                         'direction': 'SHORT',
                                         'entry_price': current_price,
-                                        'entry_time': idx
+                                        'entry_time': idx,
+                                        'signal_confidence': signal.get('confidence', 'N/A'),
+                                        'signal_reason': signal.get('reason', 'N/A'),
+                                        '0dte_permission': regime.get('0dte_status', 'N/A')
                                     }
                         
                         # Record equity
@@ -692,7 +710,10 @@ class BacktestEngine:
                             'exit_underlying': exit_underlying_price,
                             'pnl': pnl,
                             'exit_reason': 'EOD',
-                            'strike': strike
+                            'strike': strike,
+                            'confidence': current_position.get('signal_confidence', 'N/A'),
+                            'reason': current_position.get('signal_reason', 'N/A'),
+                            '0dte_permission': current_position.get('0dte_permission', 'N/A')
                         })
                     else:
                         # Shares mode
@@ -710,7 +731,10 @@ class BacktestEngine:
                             'entry_price': entry_price,
                             'exit_price': exit_underlying_price,
                             'pnl': pnl,
-                            'exit_reason': 'EOD'
+                            'exit_reason': 'EOD',
+                            'confidence': current_position.get('signal_confidence', 'N/A'),
+                            'reason': current_position.get('signal_reason', 'N/A'),
+                            '0dte_permission': current_position.get('0dte_permission', 'N/A')
                         })
                     
                     current_position = None
