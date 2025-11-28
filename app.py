@@ -497,7 +497,7 @@ def get_cached_intraday_data(symbol: str, interval: str, days: int = None, start
     return get_intraday_data(symbol, interval, days=days if days is not None else 1)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)  # Cache for 5 minutes instead of 1 hour
 def get_cached_iv_context(symbol: str, reference_price: float):
     """Cached IV context fetch."""
     return fetch_iv_context(symbol, reference_price)
@@ -697,7 +697,8 @@ def render_dashboard():
             # Fetch IV context
             try:
                 iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'])
-            except Exception:
+            except Exception as e:
+                st.warning(f"⚠️ Failed to fetch IV context: {str(e)}")
                 iv_context = {}
             
     except Exception as e:
