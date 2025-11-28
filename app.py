@@ -694,9 +694,11 @@ def render_dashboard():
 
             maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time, market_phase)
             
-            # Fetch IV context (cache_version=3 forces new cache)
+            # Fetch IV context (use timestamp to bust cache completely)
             try:
-                iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'], cache_version=3)
+                # Round price to nearest dollar to avoid cache spam while still refreshing regularly
+                price_rounded = round(intraday_analysis['price'])
+                iv_context = get_cached_iv_context(config.SYMBOL, price_rounded, cache_version=3)
             except Exception:
                 iv_context = {}
             
