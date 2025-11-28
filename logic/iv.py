@@ -62,10 +62,15 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     try:
         vix = yf.Ticker("^VIX")
         hist = vix.history(period=f"{lookback_days}d")
-        if not hist.empty:
+        
+        if hist.empty:
+            vix_source = "yfinance_empty_hist"
+        else:
             # Get last valid VIX close (skip if zero/invalid)
             valid_closes = hist['Close'][hist['Close'] > 0]
-            if not valid_closes.empty:
+            if valid_closes.empty:
+                vix_source = f"yfinance_no_valid_closes (got {len(hist)} rows)"
+            else:
                 vix_level = float(valid_closes.iloc[-1])
                 vix_min = float(valid_closes.min())
                 vix_max = float(valid_closes.max())
