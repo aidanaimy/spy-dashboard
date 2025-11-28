@@ -644,16 +644,16 @@ def render_dashboard():
                             <div style="font-size: 0.95rem; font-weight: 600; color: {data_source_color};">{data_source}</div>
                         </div>
                         <div>
+                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Data Freshness</div>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: {freshness_color};">{data_freshness}</div>
+                        </div>
+                        <div>
                             <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Market Status</div>
                             <div style="font-size: 0.95rem; font-weight: 600; color: {market_status_color};">{market_status}</div>
                         </div>
                         <div>
                             <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Session Phase</div>
                             <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">{phase_label}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Data Freshness</div>
-                            <div style="font-size: 0.95rem; font-weight: 600; color: {freshness_color};">{data_freshness}</div>
                         </div>
                     </div>
                     <div style="text-align: right;">
