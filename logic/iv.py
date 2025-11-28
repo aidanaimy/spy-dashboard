@@ -75,14 +75,18 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                 
                 bars = bar_set.df
                 if not bars.empty:
-                    # Get latest VIX level
-                    vix_level = float(bars['close'].iloc[-1])
-                    vix_min = float(bars['close'].min())
-                    vix_max = float(bars['close'].max())
-                    if vix_max > vix_min:
-                        vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
-                    vix_percentile = float((bars['close'] <= vix_level).mean())
-        except Exception:
+                    # Get last valid VIX close (skip if zero/invalid)
+                    valid_closes = bars['close'][bars['close'] > 0]
+                    if not valid_closes.empty:
+                        vix_level = float(valid_closes.iloc[-1])
+                        vix_min = float(valid_closes.min())
+                        vix_max = float(valid_closes.max())
+                        if vix_max > vix_min:
+                            vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
+                        vix_percentile = float((valid_closes <= vix_level).mean())
+        except Exception as e:
+            # Log error for debugging on Streamlit Cloud
+            print(f"Alpaca VIX fetch failed: {str(e)}")
             pass  # Fall through to yfinance fallback
     
     # Fallback to yfinance if Alpaca didn't work
@@ -100,7 +104,9 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                     if vix_max > vix_min:
                         vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
                     vix_percentile = float((valid_closes <= vix_level).mean())
-        except Exception:
+        except Exception as e:
+            # Log error for debugging on Streamlit Cloud
+            print(f"yfinance VIX fetch failed: {str(e)}")
             pass  # Continue to final fallback
     
     # Final fallback: Use ATM IV as proxy if both sources failed

@@ -498,7 +498,7 @@ def get_cached_intraday_data(symbol: str, interval: str, days: int = None, start
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes instead of 1 hour
-def get_cached_iv_context(symbol: str, reference_price: float, cache_version: int = 2):
+def get_cached_iv_context(symbol: str, reference_price: float, cache_version: int = 3):
     """Cached IV context fetch. cache_version forces cache invalidation when incremented."""
     return fetch_iv_context(symbol, reference_price)
 
@@ -694,9 +694,9 @@ def render_dashboard():
 
             maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time, market_phase)
             
-            # Fetch IV context (cache_version=2 forces new cache)
+            # Fetch IV context (cache_version=3 forces new cache)
             try:
-                iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'], cache_version=2)
+                iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'], cache_version=3)
             except Exception:
                 iv_context = {}
             
