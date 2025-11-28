@@ -69,7 +69,7 @@ class BacktestEngine:
         """Calculate P/L for options trade."""
         return calculate_option_pnl(entry_option_price, exit_option_price, self.options_contracts)
         
-    def run_backtest(self, start_date: datetime, end_date: datetime, use_options: bool = False) -> Dict:
+    def run_backtest(self, start_date: datetime, end_date: datetime, use_options: bool = False, progress_callback=None) -> Dict:
         """
         Run backtest over date range.
         
@@ -126,7 +126,8 @@ class BacktestEngine:
             except Exception as e:
                 print(f"⚠️ Batch fetch failed: {e}. Falling back to daily fetch.")
 
-        for day in trading_days:
+        total_days = len(trading_days)
+        for day_idx, day in enumerate(trading_days):
             try:
                 # Get intraday data for this specific day
                 target_date = day.date()
@@ -721,7 +722,16 @@ class BacktestEngine:
                 days_skipped += 1
                 continue
             
+            
             days_processed += 1
+            
+            # Update progress if callback provided
+            if progress_callback and total_days > 0:
+                progress = (day_idx + 1) / total_days
+                progress_callback(progress, f"Processing day {day_idx + 1}/{total_days}: {day.date()}")
+            
+            # Memory cleanup: explicitly delete large DataFrames after processing
+            del intraday_df
         
         # Calculate metrics
         if not trades:

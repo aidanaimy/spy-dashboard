@@ -1154,26 +1154,40 @@ def render_backtest():
             st.error("Start date must be before end date.")
             return
         
-        with st.spinner("Running backtest... This may take a few minutes."):
-            try:
-                print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}")
-                engine = BacktestEngine()
-                results = engine.run_backtest(
-                    datetime.combine(start_date, datetime.min.time()),
-                    datetime.combine(end_date, datetime.max.time()),
-                    use_options=use_options
-                )
-                
-                # Store results in session state to persist across reruns
-                st.session_state.backtest_results = results
-                st.session_state.backtest_start_date = start_date
-                st.session_state.backtest_end_date = end_date
-                st.session_state.backtest_use_options = use_options
-                st.rerun()
+        # Create progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        def update_progress(progress_value, status_message):
+            """Callback to update progress bar."""
+            progress_bar.progress(progress_value)
+            status_text.text(status_message)
+        
+        try:
+            print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}")
+            status_text.text("Initializing backtest engine...")
+            engine = BacktestEngine()
+            results = engine.run_backtest(
+                datetime.combine(start_date, datetime.min.time()),
+                datetime.combine(end_date, datetime.max.time()),
+                use_options=use_options,
+                progress_callback=update_progress
+            )
             
-            except Exception as e:
-                st.error(f"Error running backtest: {str(e)}")
-                st.exception(e)
+            # Store results in session state to persist across reruns
+            st.session_state.backtest_results = results
+            st.session_state.backtest_start_date = start_date
+            st.session_state.backtest_end_date = end_date
+            st.session_state.backtest_use_options = use_options
+            
+            # Clear progress indicators
+            progress_bar.empty()
+            status_text.empty()
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"Error running backtest: {str(e)}")
+            st.exception(e)
     
     # Display results if they exist in session state
     if 'backtest_results' in st.session_state:
