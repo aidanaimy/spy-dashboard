@@ -1185,6 +1185,7 @@ def render_backtest():
         # Display results with minimal spacing
         st.markdown("<div class='dashboard-section'>", unsafe_allow_html=True)
         st.subheader("Backtest Results")
+        # Remove any empty divs or spacing here
         metrics_html = textwrap.dedent(
             f"""
             <div class="metric-grid" style="margin-top:1rem;">
