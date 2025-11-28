@@ -48,6 +48,9 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_rank = None
     vix_percentile = None
 
+    vix_change = None
+    vix_change_pct = None
+    
     try:
         vix = yf.Ticker("^VIX")
         hist = vix.history(period=f"{lookback_days}d")
@@ -58,17 +61,27 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
             if vix_max > vix_min:
                 vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
             vix_percentile = float((hist['Close'] <= vix_level).mean())
+            
+            # Calculate VIX change from previous day
+            if len(hist) >= 2:
+                vix_prev = float(hist['Close'].iloc[-2])
+                vix_change = vix_level - vix_prev
+                vix_change_pct = (vix_change / vix_prev) * 100 if vix_prev > 0 else 0
     except Exception:
         vix_level = None
         vix_rank = None
         vix_percentile = None
+        vix_change = None
+        vix_change_pct = None
 
     return {
         'atm_iv': atm_iv,
         'expiry': expiry,
         'vix_level': vix_level,
         'vix_rank': vix_rank,
-        'vix_percentile': vix_percentile
+        'vix_percentile': vix_percentile,
+        'vix_change': vix_change,
+        'vix_change_pct': vix_change_pct
     }
 
 

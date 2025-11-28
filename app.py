@@ -716,6 +716,12 @@ def render_dashboard():
     dist_from_20d = ((regime['latest_close'] - regime['ma_short']) / regime['ma_short']) * 100
     dist_from_50d = ((regime['latest_close'] - regime['ma_long']) / regime['ma_long']) * 100 if regime['ma_long'] > 0 else 0
     
+    # Calculate daily price change
+    yesterday_close = today_data['yesterday_close']
+    price_change = regime['latest_close'] - yesterday_close
+    price_change_pct = (price_change / yesterday_close) * 100 if yesterday_close > 0 else 0
+    price_change_color = "#2bd47d" if price_change >= 0 else "#ff5f6d"
+    
     # Generate trend summary
     def describe_trend(trend, dist_20d, dist_50d):
         if trend == "Bullish":
@@ -728,7 +734,7 @@ def render_dashboard():
             return f"<p><strong>Mixed trend:</strong> SPY trading between key moving averages. Direction unclear; wait for clearer signal.</p>"
     
     trend_summary = describe_trend(regime['trend'], dist_from_20d, dist_from_50d)
-    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f}</div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div><div class="metric-card"><div class="label">Above 20D</div><div class="value">{dist_from_20d:+.2f}%</div></div></div>{trend_summary}"""
+    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f} <span style="color:{price_change_color};">({price_change_pct:+.2f}%)</span></div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div><div class="metric-card"><div class="label">Above 20D</div><div class="value">{dist_from_20d:+.2f}%</div></div></div>{trend_summary}"""
     regime_cards.append(build_info_card("Trend Bias", "📊", trend_body, trend_color))
     
     gap_sign = "+" if regime['gap'] > 0 else ""
@@ -799,9 +805,14 @@ def render_dashboard():
     vix_level = iv_context.get('vix_level')
     vix_rank = iv_context.get('vix_rank')
     vix_percentile = iv_context.get('vix_percentile')
+    vix_change_pct = iv_context.get('vix_change_pct')
 
     if vix_level is not None:
-        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}</div></div>")
+        # Add VIX change color indicator
+        vix_change_color = "#ff5f6d" if vix_change_pct and vix_change_pct > 0 else "#2bd47d" if vix_change_pct and vix_change_pct < 0 else "#8ea0bc"
+        vix_change_display = f" <span style='color:{vix_change_color};'>({vix_change_pct:+.2f}%)</span>" if vix_change_pct is not None else ""
+        
+        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}{vix_change_display}</div></div>")
         if vix_rank is not None:
             iv_body_parts.append(f"<div class='metric-card'><div class='label'>VIX Rank</div><div class='value'>{vix_rank*100:.0f}%</div></div>")
         if vix_percentile is not None:
