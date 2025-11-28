@@ -1,22 +1,12 @@
 """
-Option implied volatility context via yfinance and Alpaca.
+Option implied volatility context via yfinance.
 """
 
 from typing import Dict, Optional
 from datetime import datetime, timedelta
-import logging
-import os
 
 import numpy as np
-import requests
 import yfinance as yf
-
-# Disable yfinance caching to avoid "unable to open database file" on Streamlit Cloud
-# Streamlit Cloud has read-only filesystem restrictions
-os.environ['YF_CACHE_DISABLE'] = '1'
-
-# Set up logging
-logger = logging.getLogger(__name__)
 
 
 def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 252) -> Dict[str, Optional[float]]:
@@ -57,88 +47,28 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     vix_level = None
     vix_rank = None
     vix_percentile = None
-    vix_source = None
 
-    # Try direct Yahoo Finance API call (more reliable than yfinance library)
     try:
-        # Get current VIX quote
-        url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX"
-        params = {
-            'interval': '1d',
-            'range': '1y'
-        }
-        response = requests.get(url, params=params, timeout=5)
-        
-        if response.status_code == 200:
-            data = response.json()
-            result = data.get('chart', {}).get('result', [{}])[0]
-            
-            # Get historical closes for rank/percentile
-            closes = result.get('indicators', {}).get('quote', [{}])[0].get('close', [])
-            closes = [c for c in closes if c is not None and c > 0]
-            
-            if closes:
-                vix_level = float(closes[-1])
-                vix_min = float(min(closes))
-                vix_max = float(max(closes))
-                
-                if vix_max > vix_min:
-                    vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
-                vix_percentile = float(sum(1 for c in closes if c <= vix_level) / len(closes))
-                vix_source = "yahoo_api"
-            else:
-                vix_source = "yahoo_api_no_closes"
-        else:
-            vix_source = f"yahoo_api_status_{response.status_code}"
-    except Exception as e:
-        vix_source = f"yahoo_api_error_{type(e).__name__}"
-    
-    # Final fallback: Use ATM IV as proxy if yfinance failed
-    if vix_level is None:
-        if atm_iv is not None and atm_iv > 0:
-            vix_source = "atm_iv_scaled"
-            # ATM IV is typically lower than VIX, so scale it up
-            # Typical relationship: VIX ≈ ATM IV * 80-100
-            # Use conservative 85x multiplier
-            vix_level = min(atm_iv * 85, 100.0)  # Cap at 100
-            
-            # Estimate rank/percentile based on VIX level
-            # Historical VIX ranges: typical 10-30, extremes 5-80
-            # Using empirical distribution for more accurate estimates
-            
-            # VIX Rank (position within 52-week range)
-            # Assume typical range: min=10, max=35 for normal markets
-            vix_min_estimate = 10.0
-            vix_max_estimate = 35.0
-            vix_rank = max(0.0, min(1.0, (vix_level - vix_min_estimate) / (vix_max_estimate - vix_min_estimate)))
-            
-            # VIX Percentile (historical distribution)
-            # Based on long-term VIX statistics:
-            # 10th percentile ≈ 11, 25th ≈ 13, 50th ≈ 16, 75th ≈ 20, 90th ≈ 27
-            if vix_level < 11:
-                vix_percentile = 0.05
-            elif vix_level < 13:
-                vix_percentile = 0.10 + (vix_level - 11) / (13 - 11) * 0.15  # Linear interpolation
-            elif vix_level < 16:
-                vix_percentile = 0.25 + (vix_level - 13) / (16 - 13) * 0.25
-            elif vix_level < 20:
-                vix_percentile = 0.50 + (vix_level - 16) / (20 - 16) * 0.25
-            elif vix_level < 27:
-                vix_percentile = 0.75 + (vix_level - 20) / (27 - 20) * 0.15
-            else:
-                vix_percentile = min(0.95, 0.90 + (vix_level - 27) / 20 * 0.05)
-        else:
-            vix_level = None
-            vix_rank = None
-            vix_percentile = None
+        vix = yf.Ticker("^VIX")
+        hist = vix.history(period=f"{lookback_days}d")
+        if not hist.empty:
+            vix_level = float(hist['Close'].iloc[-1])
+            vix_min = float(hist['Close'].min())
+            vix_max = float(hist['Close'].max())
+            if vix_max > vix_min:
+                vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
+            vix_percentile = float((hist['Close'] <= vix_level).mean())
+    except Exception:
+        vix_level = None
+        vix_rank = None
+        vix_percentile = None
 
     return {
         'atm_iv': atm_iv,
         'expiry': expiry,
         'vix_level': vix_level,
         'vix_rank': vix_rank,
-        'vix_percentile': vix_percentile,
-        'vix_source': vix_source  # Add source tracking for debugging
+        'vix_percentile': vix_percentile
     }
 
 

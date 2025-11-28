@@ -3,10 +3,6 @@ Main Streamlit app for SPY small-DTE trading dashboard.
 """
 
 import os
-
-# Disable yfinance caching BEFORE any imports to avoid database file errors on Streamlit Cloud
-os.environ['YF_CACHE_DISABLE'] = '1'
-
 from datetime import datetime, timedelta, time
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo
@@ -501,9 +497,9 @@ def get_cached_intraday_data(symbol: str, interval: str, days: int = None, start
     return get_intraday_data(symbol, interval, days=days if days is not None else 1)
 
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes instead of 1 hour
-def get_cached_iv_context(symbol: str, reference_price: float, cache_version: int = 3):
-    """Cached IV context fetch. cache_version forces cache invalidation when incremented."""
+@st.cache_data(ttl=3600)
+def get_cached_iv_context(symbol: str, reference_price: float):
+    """Cached IV context fetch."""
     return fetch_iv_context(symbol, reference_price)
 
 def render_dashboard():
@@ -698,11 +694,9 @@ def render_dashboard():
 
             maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time, market_phase)
             
-            # Fetch IV context (use timestamp to bust cache completely)
+            # Fetch IV context
             try:
-                # Round price to nearest dollar to avoid cache spam while still refreshing regularly
-                price_rounded = round(intraday_analysis['price'])
-                iv_context = get_cached_iv_context(config.SYMBOL, price_rounded, cache_version=3)
+                iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'])
             except Exception:
                 iv_context = {}
             
@@ -805,19 +799,9 @@ def render_dashboard():
     vix_level = iv_context.get('vix_level')
     vix_rank = iv_context.get('vix_rank')
     vix_percentile = iv_context.get('vix_percentile')
-    vix_source = iv_context.get('vix_source', 'unknown')
 
     if vix_level is not None:
-        # Add source indicator for debugging
-        source_indicator = ""
-        if vix_source == "atm_iv_scaled":
-            source_indicator = " <span style='font-size: 0.8em; color: #ffa500;'>(estimated)</span>"
-        elif vix_source.startswith("yfinance_error"):
-            source_indicator = f" <span style='font-size: 0.8em; color: #ff6b6b;'>(error: {vix_source.split(': ', 1)[1]})</span>"
-        elif vix_source == "yfinance":
-            source_indicator = " <span style='font-size: 0.8em; color: #51cf66;'>✓</span>"
-        
-        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level{source_indicator}</div><div class='value'>{vix_level:.2f}</div></div>")
+        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}</div></div>")
         if vix_rank is not None:
             iv_body_parts.append(f"<div class='metric-card'><div class='label'>VIX Rank</div><div class='value'>{vix_rank*100:.0f}%</div></div>")
         if vix_percentile is not None:
