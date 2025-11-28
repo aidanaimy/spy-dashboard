@@ -336,6 +336,9 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     """Send Discord alert when signal direction/confidence changes."""
     direction = signal.get("direction", "NONE")
     confidence = signal.get("confidence", "LOW")
+    permission = regime.get("0dte_status")
+    is_open = market_phase.get("is_open", False)
+    
     snapshot = f"{direction}:{confidence}"
 
     cache = get_signal_cache()
@@ -345,18 +348,37 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
 
     cache["snapshot"] = snapshot
 
+    # === FILTER: Only send Discord for actionable signals ===
+    # Skip if:
+    # 1. LOW confidence (not actionable)
+    # 2. 0DTE Permission is AVOID (don't trade)
+    # 3. Market phase doesn't allow trading (blocked period)
+    if confidence == "LOW":
+        return
+    if permission == "AVOID":
+        return
+    if not is_open:
+        return
+
+    # === Build Discord message ===
     timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S ET")
     reason = signal.get("reason", "")
     price = intraday.get("price")
     micro_trend = intraday.get("micro_trend")
     iv_summary = iv_context.get("atm_iv")
-    permission = regime.get("0dte_status")
 
     price_str = f"${price:.2f}" if price is not None else "n/a"
     iv_str = f"{iv_summary:.2f}%" if iv_summary is not None else "n/a"
 
+    # === Determine ping level ===
+    # HIGH confidence + FAVORABLE = @everyone ping
+    # MEDIUM confidence or CAUTION = no ping
+    ping = ""
+    if confidence == "HIGH" and permission == "FAVORABLE":
+        ping = "@everyone 🚨 "
+
     message = (
-        f"📈 **Signal Update**\n"
+        f"{ping}**Signal Update**\n"
         f"- Direction: **{direction}**\n"
         f"- Confidence: **{confidence}**\n"
         f"- 0DTE Permission: {permission}\n"
