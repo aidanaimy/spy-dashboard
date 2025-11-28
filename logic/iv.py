@@ -59,9 +59,15 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                 vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
             vix_percentile = float((hist['Close'] <= vix_level).mean())
     except Exception:
-        vix_level = None
-        vix_rank = None
-        vix_percentile = None
+        # Fallback: Use ATM IV as proxy for VIX if VIX fetch fails
+        if atm_iv is not None and atm_iv > 0:
+            vix_level = atm_iv  # Use ATM IV as VIX proxy
+            vix_rank = 0.5  # Assume middle of range
+            vix_percentile = 0.5  # Assume middle percentile
+        else:
+            vix_level = None
+            vix_rank = None
+            vix_percentile = None
 
     return {
         'atm_iv': atm_iv,
