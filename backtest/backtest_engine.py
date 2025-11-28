@@ -90,7 +90,8 @@ class BacktestEngine:
         # Get daily data for regime analysis - fetch enough to cover the backtest period
         # Calculate days needed: backtest period + buffer for weekends/holidays + MA periods
         backtest_days = (end_date - start_date).days
-        required_days = max(backtest_days * 2, 100)  # At least 2x the period or 100 days
+        # Need extra days for MA calculation (50-day MA needs 50 days before start)
+        required_days = max(backtest_days + config.MA_LONG + 50, 150)  # Backtest period + MA buffer, minimum 150 days
         daily_df = get_daily_data(config.SYMBOL, days=required_days)
         
         # Get list of trading days
