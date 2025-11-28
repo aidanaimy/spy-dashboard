@@ -125,9 +125,28 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
     # Final fallback: Use ATM IV as proxy if both sources failed
     if vix_level is None:
         if atm_iv is not None and atm_iv > 0:
-            vix_level = atm_iv  # Use ATM IV as VIX proxy
-            vix_rank = 0.5  # Assume middle of range
-            vix_percentile = 0.5  # Assume middle percentile
+            # ATM IV is typically lower than VIX, so scale it up
+            # Typical relationship: VIX ≈ ATM IV * 80-100
+            # Use conservative 85x multiplier
+            vix_level = min(atm_iv * 85, 100.0)  # Cap at 100
+            
+            # Estimate rank/percentile based on VIX level
+            # VIX typically ranges 10-30, extremes 5-80
+            if vix_level < 12:
+                vix_rank = 0.1
+                vix_percentile = 0.2
+            elif vix_level < 15:
+                vix_rank = 0.25
+                vix_percentile = 0.35
+            elif vix_level < 20:
+                vix_rank = 0.5
+                vix_percentile = 0.5
+            elif vix_level < 25:
+                vix_rank = 0.7
+                vix_percentile = 0.7
+            else:
+                vix_rank = 0.85
+                vix_percentile = 0.85
         else:
             vix_level = None
             vix_rank = None
