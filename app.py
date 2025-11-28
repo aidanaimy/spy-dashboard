@@ -526,13 +526,18 @@ def render_dashboard():
             intraday_raw.index = pd.to_datetime(intraday_raw.index)
             et_tz = ZoneInfo("America/New_York")
             
-            # Debug: show which data source is being used and market status
+            # Build status header with data source and market info
             try:
                 from data.alpaca_client import get_alpaca_api
                 alpaca_api = get_alpaca_api()
-                data_source = "Alpaca" if alpaca_api is not None else "yfinance (fallback)"
+                data_source = "Alpaca" if alpaca_api is not None else "yfinance"
+                data_source_color = "#2bd47d" if alpaca_api is not None else "#f7b500"
                 
                 # Check if market is open by getting latest trade
+                market_status = "UNKNOWN"
+                market_status_color = "#8ea0bc"
+                latest_trade_time = None
+                
                 if alpaca_api is not None:
                     try:
                         latest_trade = alpaca_api.get_latest_trade("SPY")
@@ -541,21 +546,26 @@ def render_dashboard():
                             if hasattr(trade_time, 'astimezone'):
                                 trade_time_et = trade_time.astimezone(et_tz)
                                 trade_date = trade_time_et.date()
-                                trade_time_str = trade_time_et.strftime('%Y-%m-%d %H:%M:%S ET')
+                                latest_trade_time = trade_time_et.strftime('%H:%M:%S ET')
                                 is_today = trade_date == datetime.now(et_tz).date()
-                                market_status = "OPEN (today)" if is_today else f"CLOSED (last: {trade_time_str})"
-                                st.caption(f"Data source: {data_source} | Market: {market_status}")
-                            else:
-                                st.caption(f"Data source: {data_source}")
-                        else:
-                            st.caption(f"Data source: {data_source} | Market: No trade data")
-                    except Exception as e:
-                        st.caption(f"Data source: {data_source} | Market check failed: {str(e)}")
-                else:
-                    st.caption(f"Data source: {data_source}")
+                                if is_today:
+                                    market_status = "OPEN"
+                                    market_status_color = "#2bd47d"
+                                else:
+                                    market_status = "CLOSED"
+                                    market_status_color = "#ff5f6d"
+                    except Exception:
+                        pass
             except:
                 data_source = "yfinance"
-                st.caption(f"Data source: {data_source}")
+                data_source_color = "#f7b500"
+            
+            # Get current time and market phase
+            current_time = datetime.now(et_tz)
+            market_phase = get_market_phase(current_time)
+            phase_label = market_phase.get('label', 'Unknown')
+            phase_is_open = market_phase.get('is_open', False)
+            
             today = datetime.now(et_tz).date()
             intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
             
@@ -587,15 +597,47 @@ def render_dashboard():
                 # Drop the temporary time column
                 intraday_df = intraday_df.drop(columns=['time_only'], errors='ignore')
             
-            # Debug: show latest bar timestamp and date
+            # Build modern status header
             if not intraday_raw.empty:
                 latest_bar_time = intraday_raw.index[-1]
-                latest_bar_date = latest_bar_time.date()
-                current_time = datetime.now(et_tz)
-                # Show unique dates in the data
-                unique_dates = sorted(set(intraday_raw.index.date))
-                dates_str = ", ".join([d.strftime('%m-%d') for d in unique_dates[-5:]])  # Last 5 dates
-                st.caption(f"Latest bar: {latest_bar_time.strftime('%Y-%m-%d %H:%M:%S ET')} | Today: {today} | Current: {current_time.strftime('%H:%M:%S ET')} | Today's bars: {len(intraday_df)} | Dates in data: {dates_str}")
+                latest_bar_str = latest_bar_time.strftime('%H:%M:%S ET')
+                current_time_str = current_time.strftime('%H:%M:%S ET')
+                
+                # Determine if data is stale (>5 min old during market hours)
+                time_diff = (current_time - latest_bar_time).total_seconds() / 60
+                is_stale = time_diff > 5 and phase_is_open
+                data_freshness = "⚠️ STALE" if is_stale else "✓ LIVE"
+                freshness_color = "#f7b500" if is_stale else "#2bd47d"
+                
+                # Build clean status bar
+                status_html = f"""
+                <div style="background: var(--panel-light); border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Data Source</div>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: {data_source_color};">{data_source}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Market Status</div>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: {market_status_color};">{market_status}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Session Phase</div>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">{phase_label}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Data Freshness</div>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: {freshness_color};">{data_freshness}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Latest Bar</div>
+                        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">{latest_bar_str}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem;">Bars: {len(intraday_df)}</div>
+                    </div>
+                </div>
+                """
+                st.markdown(status_html, unsafe_allow_html=True)
             
             if intraday_df.empty:
                 # Fallback: use last available session so dashboard still renders
@@ -810,7 +852,7 @@ def render_dashboard():
     if vix_level is not None:
         # Add VIX change color indicator (green for +, red for -)
         vix_change_color = "#2bd47d" if vix_change_pct and vix_change_pct > 0 else "#ff5f6d" if vix_change_pct and vix_change_pct < 0 else "#8ea0bc"
-        vix_change_display = f" <span style='color:{vix_change_color};'>({vix_change_pct:+.2f}%)</span>" if vix_change_pct is not None else ""
+        vix_change_display = f" <span style='color:{vix_change_color}; font-size: 0.85rem;'>({vix_change_pct:+.2f}%)</span>" if vix_change_pct is not None else ""
         
         iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}{vix_change_display}</div></div>")
         if vix_rank is not None:
