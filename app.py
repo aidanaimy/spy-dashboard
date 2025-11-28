@@ -697,6 +697,9 @@ def render_dashboard():
             # Fetch IV context
             try:
                 iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'])
+                # Debug: Log what we got
+                if iv_context:
+                    st.info(f"📊 IV Context: ATM={iv_context.get('atm_iv')}, VIX={iv_context.get('vix_level')}")
             except Exception as e:
                 st.warning(f"⚠️ Failed to fetch IV context: {str(e)}")
                 iv_context = {}
