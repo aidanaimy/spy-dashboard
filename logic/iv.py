@@ -8,6 +8,7 @@ import logging
 import os
 
 import numpy as np
+import requests
 import yfinance as yf
 
 # Disable yfinance caching to avoid "unable to open database file" on Streamlit Cloud
@@ -60,9 +61,6 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
 
     # Try direct Yahoo Finance API call (more reliable than yfinance library)
     try:
-        import requests
-        from datetime import datetime
-        
         # Get current VIX quote
         url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX"
         params = {
@@ -88,8 +86,12 @@ def fetch_iv_context(symbol: str, reference_price: float, lookback_days: int = 2
                     vix_rank = (vix_level - vix_min) / (vix_max - vix_min)
                 vix_percentile = float(sum(1 for c in closes if c <= vix_level) / len(closes))
                 vix_source = "yahoo_api"
-    except Exception:
-        pass  # Fall through to fallback
+            else:
+                vix_source = "yahoo_api_no_closes"
+        else:
+            vix_source = f"yahoo_api_status_{response.status_code}"
+    except Exception as e:
+        vix_source = f"yahoo_api_error_{type(e).__name__}"
     
     # Final fallback: Use ATM IV as proxy if yfinance failed
     if vix_level is None:
