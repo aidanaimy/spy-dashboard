@@ -749,13 +749,15 @@ class BacktestEngine:
             trades_df['entry_minute'] = pd.to_datetime(trades_df['entry_time']).dt.minute
             trades_df['entry_time_of_day'] = trades_df['entry_hour'] * 60 + trades_df['entry_minute']
             
-            # Define time periods
+            # Define time periods matching new config
             time_periods = {
-                'Early (9:45-11:00)': (9*60+45, 11*60),
-                'Mid-Morning (11:00-12:00)': (11*60, 12*60),
-                'Lunch (12:00-13:00)': (12*60, 13*60),
-                'Afternoon (13:00-14:30)': (13*60, 14*60+30),
-                'Power Hour (14:30-15:30)': (14*60+30, 15*60+30)
+                'Early Open (9:45-9:55)': (9*60+45, 9*60+55),
+                'Morning Drive (9:55-10:30)': (9*60+55, 10*60+30),
+                'Mid-Morning Trend (10:30-11:45)': (10*60+30, 11*60+45),
+                'Lunch Chop (11:45-13:30)': (11*60+45, 13*60+30),
+                'Afternoon Wake-up (13:30-14:15)': (13*60+30, 14*60+15),
+                'Breakout Window (14:15-14:30)': (14*60+15, 14*60+30),
+                'Late Day (14:30+)': (14*60+30, 16*60)
             }
             
             for period_name, (start_min, end_min) in time_periods.items():
@@ -764,19 +766,24 @@ class BacktestEngine:
                     (trades_df['entry_time_of_day'] < end_min)
                 ]
                 
-                if len(period_trades) > 0:
-                    period_win_rate = len(period_trades[period_trades['pnl'] > 0]) / len(period_trades)
-                    period_avg_r = period_trades['r_multiple'].mean()
-                    period_pnl = period_trades['pnl'].sum()
+                # Always include period in report even if 0 trades, to confirm blocking works
+                if len(period_trades) >= 0:
                     period_count = len(period_trades)
+                    if period_count > 0:
+                        period_win_rate = len(period_trades[period_trades['pnl'] > 0]) / period_count
+                        period_avg_r = period_trades['r_multiple'].mean()
+                        period_pnl = period_trades['pnl'].sum()
+                    else:
+                        period_win_rate = 0.0
+                        period_avg_r = 0.0
+                        period_pnl = 0.0
                     
                     time_analysis[period_name] = {
                         'trades': period_count,
                         'win_rate': period_win_rate,
                         'avg_r_multiple': period_avg_r,
                         'total_pnl': period_pnl
-                    }
-        
+                    }        
         return {
             'trades': trades_df,
             'equity_curve': equity_df,
@@ -787,4 +794,5 @@ class BacktestEngine:
             'total_pnl': total_pnl,
             'time_analysis': time_analysis
         }
+
 
