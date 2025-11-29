@@ -579,43 +579,43 @@ class BacktestEngine:
                                             'signal_reason': signal.get('reason', 'N/A'),
                                             '0dte_permission': regime.get('0dte_status', 'N/A')
                                         }
-                                elif signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
-                                    # Options mode: Only enter on HIGH confidence (filtered by options_mode)
-                                    strike = get_atm_strike(current_price)
-                                    option_type = 'put'
-                                    
-                                    # Get time to expiration
-                                    if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
-                                        hours = idx.hour
-                                        minutes = idx.minute
-                                    else:
-                                        idx_dt = pd.to_datetime(idx)
-                                        hours = idx_dt.hour
-                                        minutes = idx_dt.minute
-                                    
-                                    T = time_to_expiration_0dte(hours, minutes)
-                                    
-                                    # Use VIX as proxy for IV (default to 20.0 if None or missing)
-                                    vix_level = iv_context.get('vix_level') or 20.0
-                                    sigma = vix_level / 100.0
-                                    
-                                    # Calculate entry option price
-                                    entry_option_price = self._get_option_price(
-                                        current_price, strike, T, sigma, option_type
-                                    )
-                                    
-                                    current_position = {
-                                        'direction': 'SHORT',
-                                        'entry_price': entry_option_price,
-                                        'entry_underlying_price': current_price,
-                                        'entry_option_price': entry_option_price,
-                                        'entry_time': idx,
-                                        'strike': strike,
-                                        'entry_iv': sigma,
-                                        'signal_confidence': signal.get('confidence', 'N/A'),
-                                        'signal_reason': signal.get('reason', 'N/A'),
-                                        '0dte_permission': regime.get('0dte_status', 'N/A')
-                                    }
+                                    if signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
+                                        # Options mode: Only enter on HIGH confidence (filtered by options_mode)
+                                        strike = get_atm_strike(current_price)
+                                        option_type = 'put'
+                                        
+                                        # Get time to expiration
+                                        if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
+                                            hours = idx.hour
+                                            minutes = idx.minute
+                                        else:
+                                            idx_dt = pd.to_datetime(idx)
+                                            hours = idx_dt.hour
+                                            minutes = idx_dt.minute
+                                        
+                                        T = time_to_expiration_0dte(hours, minutes)
+                                        
+                                        # Use VIX as proxy for IV (default to 20.0 if None or missing)
+                                        vix_level = iv_context.get('vix_level') or 20.0
+                                        sigma = vix_level / 100.0
+                                        
+                                        # Calculate entry option price
+                                        entry_option_price = self._get_option_price(
+                                            current_price, strike, T, sigma, option_type
+                                        )
+                                        
+                                        current_position = {
+                                            'direction': 'SHORT',
+                                            'entry_price': entry_option_price,
+                                            'entry_underlying_price': current_price,
+                                            'entry_option_price': entry_option_price,
+                                            'entry_time': idx,
+                                            'strike': strike,
+                                            'entry_iv': sigma,
+                                            'signal_confidence': signal.get('confidence', 'N/A'),
+                                            'signal_reason': signal.get('reason', 'N/A'),
+                                            '0dte_permission': regime.get('0dte_status', 'N/A')
+                                        }
                                 else:
                                     # Shares mode: Original logic
                                     if signal['direction'] == 'CALL' and signal['confidence'] in ['MEDIUM', 'HIGH']:
