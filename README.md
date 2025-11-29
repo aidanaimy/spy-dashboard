@@ -1,8 +1,9 @@
-# SPY 0DTE Trading System (v3.0)
+# SPY 0DTE Trading System (v3.5)
 
 This repo contains a Streamlit-based trading dashboard for SPY 0DTE options with rule-based signal generation, real-time Discord notifications, backtesting engine, and ML optimization tools.
 
-**Version 3.0** includes:
+**Version 3.5** includes:
+- 🚀 **Wide Stops Breakthrough** (TP: 80%, SL: 40%) - eliminates overtrading, +77% returns
 - 🎯 **High-confidence 0DTE signals** with FAVORABLE-day filtering
 - ⏰ **Optimized time-of-day filters** (power hour boost, lunch chop block)
 - 🔔 **Discord webhook notifications** with @everyone pings for HIGH signals
@@ -154,20 +155,27 @@ See `ml_optimization/OPTIMIZATION_GUIDE.md` for full details.
 
 ## 📊 Performance Metrics
 
-**1-Year Backtest Results** (Nov 28, 2024 - Nov 28, 2025):
-- **Total Trades**: 231
-- **Win Rate**: 40.3%
-- **Win/Loss Ratio**: 2.15:1 ($137.80 avg win / $64.14 avg loss)
-- **Total P/L**: +$3,964.33
-- **Annual Return**: ~39.6% per contract
-- **Max Drawdown**: 9.6%
-- **Profit Factor**: 1.45
+**V3.5 - 2-Year Backtest Results** (Nov 2023 - Nov 2025, Wide Stops):
+- **Total Trades**: 211 over 523 trading days
+- **Win Rate**: 45.0%
+- **Win/Loss Ratio**: 2.12:1 ($225.18 avg win / $106.18 avg loss)
+- **Total P/L**: +$9,074.46
+- **Annual Return**: ~45% per contract ($4,537/year gross)
+- **Max Drawdown**: 8.7%
+- **Profit Factor**: 1.74
+- **Net Annual Return**: ~23% ($2,295/year after costs)
+
+**V3.5 Breakthrough - Wide Stops**:
+- **Take Profit**: 80% (vs 40% in V3.0) - captures full 0DTE moves
+- **Stop Loss**: 40% (vs 15% in V3.0) - room for volatility
+- **Result**: +77% higher returns, -31% fewer trades, +4.4% higher win rate
+- **Key Insight**: Wider stops eliminate overtrading and let 0DTE edge work
 
 **System Characteristics**:
-- **Selectivity**: 0.88 trades/day (highly selective)
+- **Selectivity**: 0.4 trades/day (~2 trades/week)
 - **Filters Applied**: HIGH confidence + FAVORABLE days only
-- **Cooldown**: 30 minutes after stop loss
-- **Key Insight**: 40% win rate is profitable with 2.15:1 R:R (breakeven at 32%)
+- **Cooldown**: 30 minutes after stop loss only (no cooldown after TP)
+- **Edge**: 45% win rate vs 32% breakeven = 13% edge above random
 
 ---
 

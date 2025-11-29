@@ -19,7 +19,7 @@ def run_full_backtest():
     """Run backtest over maximum available period."""
     
     print("=" * 80)
-    print("SPY 0DTE OPTIONS BACKTEST - 2 YEAR HISTORICAL PERIOD")
+    print("SPY 0DTE OPTIONS BACKTEST - 2 YEAR (WIDE STOPS: TP 80%, SL 40%)")
     print("=" * 80)
     print()
     
