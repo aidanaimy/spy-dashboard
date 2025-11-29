@@ -1424,14 +1424,14 @@ def render_backtest():
                 
                 # Create display columns based on available data
                 if has_metadata:
-                    display_cols = ['entry_time', 'direction', 'confidence', '0dte_permission', 
+                    display_cols = ['entry_time', 'exit_time', 'direction', 'confidence', '0dte_permission', 
                                    'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                    col_names = ['Entry Time', 'Direction', 'Confidence', '0DTE', 
+                    col_names = ['Entry Time', 'Exit Time', 'Direction', 'Confidence', '0DTE', 
                                 'Entry', 'Exit', 'Exit', 'P/L', 'Result']
                 else:
                     # Old format without metadata
-                    display_cols = ['entry_time', 'direction', 'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                    col_names = ['Entry Time', 'Direction', 'Entry', 'Exit', 'Exit', 'P/L', 'Result']
+                    display_cols = ['entry_time', 'exit_time', 'direction', 'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
+                    col_names = ['Entry Time', 'Exit Time', 'Direction', 'Entry', 'Exit', 'Exit', 'P/L', 'Result']
                 
                 # Rename for display
                 display_df = summary_df[display_cols].copy()
@@ -1465,6 +1465,8 @@ def render_backtest():
                             with col1:
                                 st.markdown("**📊 Trade Info**")
                                 st.write(f"**Direction:** {trade['direction']}")
+                                st.write(f"**Entry Time:** {pd.to_datetime(trade['entry_time']).strftime('%m/%d %H:%M')}")
+                                st.write(f"**Exit Time:** {pd.to_datetime(trade['exit_time']).strftime('%m/%d %H:%M')}")
                                 st.write(f"**Confidence:** {trade.get('confidence', 'N/A')}")
                                 st.write(f"**0DTE Permission:** {trade.get('0dte_permission', 'N/A')}")
                                 st.write(f"**Exit Reason:** {trade['exit_reason']}")

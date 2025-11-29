@@ -19,13 +19,13 @@ def run_full_backtest():
     """Run backtest over maximum available period."""
     
     print("=" * 80)
-    print("SPY 0DTE OPTIONS BACKTEST - MAXIMUM HISTORICAL PERIOD")
+    print("SPY 0DTE OPTIONS BACKTEST - 2 YEAR HISTORICAL PERIOD")
     print("=" * 80)
     print()
     
     # Calculate date range
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=365)
+    start_date = end_date - timedelta(days=730)  # 2 years
     
     print(f"📅 Backtest Period: {start_date.date()} to {end_date.date()}")
     print(f"📊 Mode: Options (Black-Scholes)")
