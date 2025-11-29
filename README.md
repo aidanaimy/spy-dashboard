@@ -154,18 +154,20 @@ See `ml_optimization/OPTIMIZATION_GUIDE.md` for full details.
 
 ## 📊 Performance Metrics
 
-**1-Year Backtest Results** (Nov 2024 - Nov 2025):
-- **Total Trades**: 118
-- **Win Rate**: 48.3% overall, 63% recent (Oct-Nov)
-- **Win/Loss Ratio**: 2:1 ($103 avg win / $53 avg loss)
-- **Total P/L**: +$2,659.74
-- **Annual Return**: 26.6%
-- **Max Drawdown**: Minimal (2:1 ratio protects capital)
+**1-Year Backtest Results** (Nov 28, 2024 - Nov 28, 2025):
+- **Total Trades**: 231
+- **Win Rate**: 40.3%
+- **Win/Loss Ratio**: 2.15:1 ($137.80 avg win / $64.14 avg loss)
+- **Total P/L**: +$3,964.33
+- **Annual Return**: ~39.6% per contract
+- **Max Drawdown**: 9.6%
+- **Profit Factor**: 1.45
 
-**Recent Performance** (Oct-Nov 2025, with optimizations):
-- **Win Rate**: 63%
+**System Characteristics**:
+- **Selectivity**: 0.88 trades/day (highly selective)
 - **Filters Applied**: HIGH confidence + FAVORABLE days only
 - **Cooldown**: 30 minutes after stop loss
+- **Key Insight**: 40% win rate is profitable with 2.15:1 R:R (breakeven at 32%)
 
 ---
 

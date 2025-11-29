@@ -806,8 +806,13 @@ class BacktestEngine:
         trades_df = pd.DataFrame(trades)
         
         # Win rate
+        # Win/Loss metrics
         winning_trades = trades_df[trades_df['pnl'] > 0]
+        losing_trades = trades_df[trades_df['pnl'] <= 0]
+        
         win_rate = len(winning_trades) / len(trades_df) if len(trades_df) > 0 else 0.0
+        avg_win = winning_trades['pnl'].mean() if not winning_trades.empty else 0.0
+        avg_loss = losing_trades['pnl'].mean() if not losing_trades.empty else 0.0
         
         # Average R multiple (profit / risk)
         if self.use_options:
@@ -882,7 +887,10 @@ class BacktestEngine:
             'num_trades': len(trades_df),
             'win_rate': win_rate,
             'avg_r_multiple': avg_r_multiple,
+            'avg_r_multiple': avg_r_multiple,
             'max_drawdown': max_drawdown,
+            'avg_win': avg_win,
+            'avg_loss': avg_loss,
             'total_pnl': total_pnl,
             'time_analysis': time_analysis
         }

@@ -62,8 +62,8 @@ BACKTEST_SL_PCT = 0.003   # Stop loss: 0.3% (for shares)
 BACKTEST_POSITION_SIZE = 100  # Number of shares
 
 # Options Backtest parameters
-BACKTEST_OPTIONS_TP_PCT = 0.20  # Take profit: 20%
-BACKTEST_OPTIONS_SL_PCT = 0.10  # Stop loss: 10%
+BACKTEST_OPTIONS_TP_PCT = 0.4  # Take profit: 40%
+BACKTEST_OPTIONS_SL_PCT = 0.15  # Stop loss: 15%
 BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts
 BACKTEST_RISK_FREE_RATE = 0.045 # 4.5% annual risk-free rate
 BACKTEST_REENTRY_COOLDOWN_MINUTES = 30  # Wait 30 min after stop loss before re-entering same direction

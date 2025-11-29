@@ -24,10 +24,8 @@ def run_full_backtest():
     print()
     
     # Calculate date range
-    # yfinance has ~60 days of 5-minute data
-    # Alpaca free tier has ~2 years of data
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=365)  # Try 1 year
+    start_date = end_date - timedelta(days=365)
     
     print(f"📅 Backtest Period: {start_date.date()} to {end_date.date()}")
     print(f"📊 Mode: Options (Black-Scholes)")
@@ -68,8 +66,48 @@ def run_full_backtest():
         print(f"  Avg R-Multiple: {results['avg_r_multiple']:.2f}")
         print(f"  Max Drawdown: {results['max_drawdown']:.1%}")
         print(f"  Total P/L: ${results['total_pnl']:,.2f}")
+        print(f"  Avg Win: ${results['avg_win']:.2f}")
+        print(f"  Avg Loss: ${results['avg_loss']:.2f}")
         print()
         
+        # Detailed Analysis
+        trades_df = results.get('trades')
+        if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
+            print("🕵️ DETAILED ANALYSIS:")
+            
+            # Win/Loss Streaks
+            wins = trades_df['pnl'] > 0
+            current_streak = 0
+            max_win_streak = 0
+            max_loss_streak = 0
+            
+            for win in wins:
+                if win:
+                    if current_streak > 0:
+                        current_streak += 1
+                    else:
+                        current_streak = 1
+                    max_win_streak = max(max_win_streak, current_streak)
+                else:
+                    if current_streak < 0:
+                        current_streak -= 1
+                    else:
+                        current_streak = -1
+                    max_loss_streak = min(max_loss_streak, current_streak)
+            
+            print(f"  Max Win Streak: {max_win_streak}")
+            print(f"  Max Loss Streak: {abs(max_loss_streak)}")
+            
+            # Best/Worst Days
+            trades_df['date'] = pd.to_datetime(trades_df['entry_time']).dt.date
+            daily_pnl = trades_df.groupby('date')['pnl'].sum()
+            best_day = daily_pnl.idxmax()
+            worst_day = daily_pnl.idxmin()
+            
+            print(f"  Best Day: {best_day} (${daily_pnl.max():.2f})")
+            print(f"  Worst Day: {worst_day} (${daily_pnl.min():.2f})")
+            print()
+
         # Time-of-day analysis
         if 'time_analysis' in results and results['time_analysis']:
             print("⏰ PERFORMANCE BY TIME OF DAY:")
@@ -93,9 +131,12 @@ def run_full_backtest():
             print()
         
         # Save detailed results
-        trades_df = results.get('trades')
         if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
-            output_file = f"backtest_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            # Create results directory if it doesn't exist
+            results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backtest_results')
+            os.makedirs(results_dir, exist_ok=True)
+            
+            output_file = os.path.join(results_dir, f"backtest_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
             trades_df.to_csv(output_file, index=False)
             print(f"💾 Detailed results saved to: {output_file}")
             print()

@@ -363,13 +363,16 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     # === Build Discord message ===
     timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S ET")
     reason = signal.get("reason", "")
-    price = intraday.get("price")
-    micro_trend = intraday.get("micro_trend")
+    price = intraday.get("price", 0)
+    vwap = intraday.get("vwap", 0)
+    micro_trend = intraday.get("micro_trend", "Neutral")
     iv_summary = iv_context.get("atm_iv")
+    trend = regime.get("trend", "Neutral")
 
     price_str = f"${price:.2f}" if price is not None else "n/a"
     iv_str = f"{iv_summary:.2f}%" if iv_summary is not None else "n/a"
-
+    vwap_status = "above" if price > vwap else "below"
+    
     # === Determine ping level ===
     # HIGH confidence + FAVORABLE = @everyone ping
     # MEDIUM confidence or CAUTION = no ping
@@ -378,14 +381,18 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
         ping = "@everyone 🚨 "
 
     message = (
-        f"{ping}**Signal Update**\n"
-        f"- Direction: **{direction}**\n"
-        f"- Confidence: **{confidence}**\n"
-        f"- 0DTE Permission: {permission}\n"
-        f"- Price: {price_str} | Micro trend: {micro_trend}\n"
-        f"- ATM IV: {iv_str}\n"
-        f"- Reason: {reason}\n"
-        f"- Time: {timestamp}"
+        f"{ping}**Signal Alert: {direction} ({confidence})**\n\n"
+        f"**The Setup:**\n"
+        f"Market is showing a **{direction}** bias. "
+        f"Daily trend is **{trend}** and micro-trend is **{micro_trend}**. "
+        f"Price ({price_str}) is trading **{vwap_status}** VWAP.\n\n"
+        f"**Context:**\n"
+        f"• Confidence: {confidence}\n"
+        f"• Session: {market_phase.get('label', 'Unknown')}\n"
+        f"• 0DTE Status: {permission}\n"
+        f"• Volatility: {iv_str} IV\n\n"
+        f"**Reason:** {reason}\n"
+        f"_{timestamp}_"
     )
 
     send_discord_notification(message)
