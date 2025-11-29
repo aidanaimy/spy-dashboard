@@ -268,19 +268,181 @@ st.markdown(
             border-bottom: none;
         }
         
+        /* Sidebar styling */
+        [data-testid="stSidebar"] {
+            background: #0f1724 !important;
+        }
+
+        [data-testid="stSidebarContent"] {
+            background: #0f1724 !important;
+        }
+
+        .stSidebar {
+            background: #0f1724 !important;
+        }
+
+        /* Force sidebar background */
+        div[data-testid="stSidebar"] > div {
+            background: #0f1724 !important;
+        }
+
+        .sidebar-settings-section {
+            padding: 0.25rem 1.5rem 1rem 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-settings-section h3 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* Style sidebar checkboxes */
+        .sidebar-settings-section .stCheckbox {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-settings-section .stCheckbox label {
+            color: var(--text-primary) !important;
+            font-weight: 500 !important;
+            font-size: 0.9rem !important;
+        }
+
+        /* Style sidebar buttons */
+        .sidebar-settings-section .stButton button {
+            background: var(--panel-light) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            padding: 0.5rem 0.75rem !important;
+            transition: all 0.2s ease !important;
+            width: 100% !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        .sidebar-settings-section .stButton button:hover {
+            background: rgba(255,255,255,0.05) !important;
+            border-color: rgba(255,255,255,0.2) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        }
+
+        .sidebar-settings-section .stButton button:active {
+            transform: translateY(0) !important;
+        }
+
+        /* Primary button styling */
+        .sidebar-settings-section .stButton button[kind="primary"] {
+            background: linear-gradient(135deg, #2bd47d, #25b86f) !important;
+            border: none !important;
+            color: white !important;
+        }
+
+        .sidebar-settings-section .stButton button[kind="primary"]:hover {
+            background: linear-gradient(135deg, #25b86f, #20a864) !important;
+            box-shadow: 0 4px 16px rgba(43,212,125,0.3) !important;
+        }
+
+        /* Secondary button styling */
+        .sidebar-settings-section .stButton button[kind="secondary"] {
+            background: rgba(255,95,109,0.1) !important;
+            border: 1px solid rgba(255,95,109,0.3) !important;
+            color: #ff5f6d !important;
+        }
+
+        .sidebar-settings-section .stButton button[kind="secondary"]:hover {
+            background: rgba(255,95,109,0.15) !important;
+            border-color: rgba(255,95,109,0.5) !important;
+        }
+
+        /* Last update display */
+        .sidebar-last-update {
+            background: rgba(43,212,125,0.1);
+            border: 1px solid rgba(43,212,125,0.3);
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .sidebar-last-update .update-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-last-update .update-time {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        /* Navigation section styling */
+        .sidebar-navigation {
+            margin-top: 1.5rem;
+            padding: 1rem 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .sidebar-navigation h4 {
+            margin: 0 0 0.25rem 0 !important;
+            font-size: 1.1rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            color: var(--text-secondary) !important;
+            font-weight: 600 !important;
+        }
+
+        /* Navigation button styling */
+        .sidebar-navigation .stButton button {
+            background: var(--panel-light) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            padding: 0.75rem 1rem !important;
+            transition: all 0.2s ease !important;
+            margin: 0.25rem 0 !important;
+            min-height: 44px !important;
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+
+        .sidebar-navigation .stButton button:hover {
+            background: rgba(255,255,255,0.05) !important;
+            border-color: rgba(255,255,255,0.2) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        }
+
+        .sidebar-navigation .stButton button:active {
+            transform: translateY(0) !important;
+        }
+
         /* Remove default Streamlit spacing */
         .main .block-container {
             padding-top: 1rem !important;
             padding-bottom: 1rem;
             max-width: 100%;
         }
-        
+
         /* Remove spacing around title */
         .main .block-container > div:first-child {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
-        
+
         .stMarkdown {
             margin-bottom: 0 !important;
         }
@@ -293,7 +455,7 @@ st.markdown(
 if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'auto_refresh' not in st.session_state:
-    st.session_state.auto_refresh = config.AUTO_REFRESH_ENABLED
+    st.session_state.auto_refresh = True  # Always enabled
 if 'last_refresh_counter' not in st.session_state:
     st.session_state.last_refresh_counter = -1
 
@@ -470,68 +632,97 @@ def main():
         </div>
     """, unsafe_allow_html=True)
     
-    # Auto-refresh control in sidebar
+    # Sidebar controls
     with st.sidebar:
-        st.markdown("### ⚙️ Settings")
-        auto_refresh = st.checkbox(
-            "Auto-refresh (30s)", 
-            value=st.session_state.auto_refresh,
-            help="Automatically refresh data every 30 seconds"
-        )
-        st.session_state.auto_refresh = auto_refresh
-        
-        if st.button("🔄 Refresh Now"):
-            # Clear cache and refresh
-            get_cached_daily_data.clear()
-            get_cached_intraday_data.clear()
-            st.rerun()
-            
-        if st.button("🧹 Clear Cache & Reboot"):
-            # Clear Streamlit cache
-            st.cache_data.clear()
-            st.cache_resource.clear()
-            
-            # Clear yfinance cache (platformdirs)
-            import shutil
-            import platformdirs
-            try:
-                cache_dir = platformdirs.user_cache_dir("py-yfinance")
-                if os.path.exists(cache_dir):
-                    shutil.rmtree(cache_dir)
-                    st.success(f"Cleared yfinance cache at {cache_dir}")
-            except Exception as e:
-                st.error(f"Failed to clear yfinance cache: {e}")
-                
-            st.rerun()
-        
+        st.markdown('<div class="sidebar-settings-section"><h3>Settings</h3>', unsafe_allow_html=True)
+
+        # Auto-refresh is always enabled
+        st.session_state.auto_refresh = True
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Refresh Now", type="primary"):
+                # Clear cache and refresh
+                get_cached_daily_data.clear()
+                get_cached_intraday_data.clear()
+                st.rerun()
+
+        with col2:
+            if st.button("🧹 Clear Cache", type="secondary"):
+                # Clear Streamlit cache
+                st.cache_data.clear()
+                st.cache_resource.clear()
+
+                # Clear yfinance cache (platformdirs)
+                import shutil
+                import platformdirs
+                try:
+                    cache_dir = platformdirs.user_cache_dir("py-yfinance")
+                    if os.path.exists(cache_dir):
+                        shutil.rmtree(cache_dir)
+                        st.success(f"Cleared yfinance cache at {cache_dir}")
+                except Exception as e:
+                    st.error(f"Failed to clear yfinance cache: {e}")
+
+                st.rerun()
+
         # Show last update time in user's local timezone
         if st.session_state.last_update:
             # Get local timezone name
             import time
             local_tz_name = time.tzname[time.daylight]  # e.g., "PST" or "PDT"
             update_time_str = st.session_state.last_update.strftime('%I:%M:%S %p')
-            st.caption(f"Last updated: {update_time_str} {local_tz_name}")
-        
-        
-        st.markdown("---")
-    
+            st.markdown(f"""
+                <div class="sidebar-last-update">
+                    <div class="update-label">Last Updated</div>
+                    <div class="update-time">{update_time_str} {local_tz_name}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Navigation section
+        st.markdown('<div class="sidebar-navigation">', unsafe_allow_html=True)
+        st.markdown('<h4>Navigation</h4>', unsafe_allow_html=True)
+
+        # Create navigation buttons (stacked vertically)
+        dashboard_btn = st.button("📊 Dashboard", key="nav_dashboard", help="View main dashboard")
+        journal_btn = st.button("📝 Journal", key="nav_journal", help="View trade journal")
+        backtest_btn = st.button("🔬 Backtest", key="nav_backtest", help="Run backtests")
+
+        # Set page based on button clicks
+        if dashboard_btn:
+            st.session_state.page = "Dashboard"
+        elif journal_btn:
+            st.session_state.page = "Trade Journal"
+        elif backtest_btn:
+            st.session_state.page = "Backtest"
+
+        # Default to Dashboard if no page set
+        if 'page' not in st.session_state:
+            st.session_state.page = "Dashboard"
+
+        page = st.session_state.page
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
     refresh_counter = 0
     if st.session_state.auto_refresh:
         # Initialize last_refresh_counter if not exists
         if "last_refresh_counter" not in st.session_state:
             st.session_state.last_refresh_counter = -1
-        
+
         # st_autorefresh runs indefinitely as long as:
         # 1. Streamlit app is running
         # 2. Browser tab is open and active
         # 3. No network disconnections
         # It will continue every 30 seconds without timeout/expiration
         refresh_counter = st_autorefresh(
-            interval=config.AUTO_REFRESH_INTERVAL, 
+            interval=config.AUTO_REFRESH_INTERVAL,
             key="data_refresh",
             limit=None  # No limit - runs indefinitely
         )
-        
+
         last_counter = st.session_state.get("last_refresh_counter", -1)
         if refresh_counter > last_counter:
             # Force cache invalidation to ensure fresh data
@@ -540,12 +731,6 @@ def main():
             get_cached_iv_context.clear()
             st.session_state.last_refresh_counter = refresh_counter
             st.session_state.last_update = datetime.now()
-    
-    # Sidebar for navigation
-    page = st.sidebar.selectbox(
-        "Navigation",
-        ["Dashboard", "Trade Journal", "Backtest"]
-    )
     
     if page == "Dashboard":
         render_dashboard()
