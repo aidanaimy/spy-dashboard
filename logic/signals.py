@@ -71,7 +71,33 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     call_score = len(call_conditions)
     put_score = len(put_conditions)
     
-    if call_score >= 3:
+    # OVERRIDE: Strong intraday moves trump daily trend (0DTE focus)
+    # This prevents buying falling knives and missing short opportunities
+    strong_intraday_move = abs(return_5) >= 0.015  # 1.5%+ move
+    
+    if strong_intraday_move:
+        if return_5 < -0.015:  # Strong selling (-1.5%+)
+            # Force PUT on intraday crashes, ignore daily trend
+            direction = "PUT"
+            # HIGH confidence if other intraday conditions align
+            if micro_trend == "Down" and price < vwap:
+                confidence = "HIGH"
+                reasons = ["Strong intraday selling"] + [c for c in put_conditions if "trend" not in c.lower()]
+            else:
+                confidence = "MEDIUM"
+                reasons = ["Strong intraday selling", "Negative 5-bar return"]
+        elif return_5 > 0.015:  # Strong rally (+1.5%+)
+            # Force CALL on intraday rallies, ignore daily trend  
+            direction = "CALL"
+            # HIGH confidence if other intraday conditions align
+            if micro_trend == "Up" and price > vwap:
+                confidence = "HIGH"
+                reasons = ["Strong intraday buying"] + [c for c in call_conditions if "trend" not in c.lower()]
+            else:
+                confidence = "MEDIUM"
+                reasons = ["Strong intraday buying", "Positive 5-bar return"]
+    # Standard scoring if no strong intraday override
+    elif call_score >= 3:
         direction = "CALL"
         confidence = "HIGH" if call_score == 4 else "MEDIUM"
         reasons = call_conditions
