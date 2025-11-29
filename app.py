@@ -370,40 +370,12 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     price_str = f"${price:.2f}" if price is not None else "n/a"
     iv_str = f"{iv_summary:.2f}%" if iv_summary is not None else "n/a"
 
-    # === Determine ping level and trade quality ===
-    # HIGH confidence + FAVORABLE = @everyone ping + high success rate note
-    # MEDIUM confidence or CAUTION = no ping + discretion note
+    # === Determine ping level ===
+    # HIGH confidence + FAVORABLE = @everyone ping
+    # MEDIUM confidence or CAUTION = no ping
     ping = ""
-    trade_note = ""
-    
-    # Check if signal meets strict options criteria (HIGH + FAVORABLE)
-    return_5 = intraday.get('return_5', 0)
-    atm_iv = iv_context.get('atm_iv')
-    
-    meets_options_criteria = (
-        confidence == "HIGH" and 
-        permission == "FAVORABLE" and
-        abs(return_5) >= 0.01 and  # 1%+ move
-        (atm_iv is None or atm_iv >= 12)  # 12%+ IV
-    )
-    
-    if meets_options_criteria:
+    if confidence == "HIGH" and permission == "FAVORABLE":
         ping = "@everyone 🚨 "
-        trade_note = "\n\n✅ **OPTIONS READY**: High success rate (63.6% WR backtested). All criteria met for 0DTE options trade."
-    else:
-        # Explain why it doesn't meet options criteria
-        missing = []
-        if confidence != "HIGH":
-            missing.append(f"Confidence is {confidence} (need HIGH)")
-        if permission != "FAVORABLE":
-            missing.append(f"0DTE is {permission} (need FAVORABLE)")
-        if abs(return_5) < 0.01:
-            missing.append(f"Move is {abs(return_5)*100:.2f}% (need 1%+)")
-        if atm_iv is not None and atm_iv < 12:
-            missing.append(f"IV is {atm_iv:.1f}% (need 12%+)")
-        
-        missing_str = "; ".join(missing)
-        trade_note = f"\n\n⚠️ **USE DISCRETION**: Does not meet all options criteria ({missing_str}). Consider shares or wait for stronger setup."
 
     message = (
         f"{ping}**Signal Update**\n"
@@ -414,7 +386,6 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
         f"- ATM IV: {iv_str}\n"
         f"- Reason: {reason}\n"
         f"- Time: {timestamp}"
-        f"{trade_note}"
     )
 
     send_discord_notification(message)

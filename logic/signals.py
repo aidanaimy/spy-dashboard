@@ -71,33 +71,7 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     call_score = len(call_conditions)
     put_score = len(put_conditions)
     
-    # OVERRIDE: Strong intraday moves trump daily trend (0DTE focus)
-    # This prevents buying falling knives and missing short opportunities
-    strong_intraday_move = abs(return_5) >= 0.01  # 1.0%+ move (lowered from 1.5%)
-    
-    if strong_intraday_move:
-        if return_5 < -0.01:  # Strong selling (-1.0%+) 
-            # Force PUT on intraday crashes, ignore daily trend
-            direction = "PUT"
-            # HIGH confidence if other intraday conditions align
-            if micro_trend == "Down" and price < vwap:
-                confidence = "HIGH"
-                reasons = ["Strong intraday selling"] + [c for c in put_conditions if "trend" not in c.lower()]
-            else:
-                confidence = "MEDIUM"
-                reasons = ["Strong intraday selling", "Negative 5-bar return"]
-        elif return_5 > 0.01:  # Strong rally (+1.0%+)
-            # Force CALL on intraday rallies, ignore daily trend  
-            direction = "CALL"
-            # HIGH confidence if other intraday conditions align
-            if micro_trend == "Up" and price > vwap:
-                confidence = "HIGH"
-                reasons = ["Strong intraday buying"] + [c for c in call_conditions if "trend" not in c.lower()]
-            else:
-                confidence = "MEDIUM"
-                reasons = ["Strong intraday buying", "Positive 5-bar return"]
-    # Standard scoring if no strong intraday override
-    elif call_score >= 3:
+    if call_score >= 3:
         direction = "CALL"
         confidence = "HIGH" if call_score == 4 else "MEDIUM"
         reasons = call_conditions
@@ -193,7 +167,6 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
 def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[Dict], market_phase: Optional[Dict]) -> Dict:
     """
     Adjust signal confidence based on regime permission and IV context.
-    NOTE: Does NOT upgrade signals that were downgraded by time filters.
     """
     direction = signal.get('direction', 'NONE')
     confidence = signal.get('confidence', 'LOW')
@@ -206,14 +179,7 @@ def apply_environment_filters(signal: Dict, regime: Dict, iv_context: Optional[D
             'confidence': 'LOW',
             'reason': f"{reason}; 0DTE AVOID (choppy)"
         }
-    
-    # Only upgrade MEDIUM → HIGH if it's NOT from a time penalty
-    # Check if "Afternoon transition" or other time penalty is in the reason
-    has_time_penalty = any(phrase in reason for phrase in [
-        'Afternoon transition', 'Early open volatility', 'Afternoon drift'
-    ])
-    
-    if permission == 'FAVORABLE' and confidence == 'MEDIUM' and not has_time_penalty:
+    elif permission == 'FAVORABLE' and confidence == 'MEDIUM':
         confidence = 'HIGH'
         reason = f"{reason}; 0DTE FAVORABLE (volatile)"
 

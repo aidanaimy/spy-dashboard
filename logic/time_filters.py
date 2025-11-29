@@ -77,9 +77,10 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
         }
         
     # 2. Afternoon Wake-up (13:45 - 14:15) - Transition window
-    # Note: Pattern analysis showed this period has lower win rate (40%), but penalties
-    # block too many profitable trades due to options requiring HIGH confidence.
-    # Keeping light penalty for shares mode, but options filter handles quality control.
+    # Note: Gap between 13:30 (Lunch end) and 13:45 is effectively "early afternoon" -> High Quality?
+    # Based on user prompt: 1:45 PM – 2:15 PM is the transition window.
+    # What about 1:30 PM - 1:45 PM? Assuming it falls into the post-lunch "High Quality" or transition?
+    # Let's align strictly with prompt: 1:45 - 2:15 is reduced.
     if config.AFTERNOON_WAKEUP_START <= time_str < config.AFTERNOON_WAKEUP_END:
          return {
             'allow_trade': True,

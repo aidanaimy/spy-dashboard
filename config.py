@@ -37,8 +37,8 @@ SESSION_END = "15:30"
 LUNCH_CHOP_START = "11:45"
 LUNCH_CHOP_END = "13:30"
 
-# Phase 2: Afternoon Wake-up (13:30-14:15) - Reduced confidence
-AFTERNOON_WAKEUP_START = "13:30"  # Changed from 13:45 to match backtest buckets
+# Phase 2: Afternoon Wake-up (13:45-14:15) - Reduced confidence
+AFTERNOON_WAKEUP_START = "13:45"
 AFTERNOON_WAKEUP_END = "14:15"
 
 # Phase 3: Power Hour (14:15-15:30) - Boosted confidence
@@ -63,7 +63,7 @@ BACKTEST_POSITION_SIZE = 100  # Number of shares
 
 # Options Backtest parameters
 BACKTEST_OPTIONS_TP_PCT = 0.20  # Take profit: 20%
-BACKTEST_OPTIONS_SL_PCT = 0.50  # Stop loss: 50%
+BACKTEST_OPTIONS_SL_PCT = 0.10  # Stop loss: 10%
 BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts
 BACKTEST_RISK_FREE_RATE = 0.045 # 4.5% annual risk-free rate
 BACKTEST_REENTRY_COOLDOWN_MINUTES = 30  # Wait 30 min after stop loss before re-entering same direction
