@@ -73,10 +73,10 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     
     # OVERRIDE: Strong intraday moves trump daily trend (0DTE focus)
     # This prevents buying falling knives and missing short opportunities
-    strong_intraday_move = abs(return_5) >= 0.015  # 1.5%+ move
+    strong_intraday_move = abs(return_5) >= 0.01  # 1.0%+ move (lowered from 1.5%)
     
     if strong_intraday_move:
-        if return_5 < -0.015:  # Strong selling (-1.5%+)
+        if return_5 < -0.01:  # Strong selling (-1.0%+) 
             # Force PUT on intraday crashes, ignore daily trend
             direction = "PUT"
             # HIGH confidence if other intraday conditions align
@@ -86,7 +86,7 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
             else:
                 confidence = "MEDIUM"
                 reasons = ["Strong intraday selling", "Negative 5-bar return"]
-        elif return_5 > 0.015:  # Strong rally (+1.5%+)
+        elif return_5 > 0.01:  # Strong rally (+1.0%+)
             # Force CALL on intraday rallies, ignore daily trend  
             direction = "CALL"
             # HIGH confidence if other intraday conditions align
