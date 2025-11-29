@@ -321,7 +321,10 @@ class BacktestEngine:
                                             'exit_underlying': current_price,
                                             'pnl': pnl,
                                             'exit_reason': exit_reason,
-                                            'strike': strike
+                                            'strike': strike,
+                                            'confidence': current_position.get('signal_confidence', 'N/A'),
+                                            'reason': current_position.get('signal_reason', 'N/A'),
+                                            '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                         })
                                         current_position = None
                                 else:
@@ -353,7 +356,10 @@ class BacktestEngine:
                                             'entry_price': entry_price,
                                             'exit_price': current_price,
                                             'pnl': pnl,
-                                            'exit_reason': exit_reason
+                                            'exit_reason': exit_reason,
+                                            'confidence': current_position.get('signal_confidence', 'N/A'),
+                                            'reason': current_position.get('signal_reason', 'N/A'),
+                                            '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                         })
                                         current_position = None
                             
