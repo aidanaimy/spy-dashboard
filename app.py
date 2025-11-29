@@ -78,7 +78,7 @@ st.markdown(
 
         .stats-group {
             border-bottom: 1px solid rgba(255,255,255,0.06);
-            padding-bottom: 1.5rem;
+            padding-bottom: 1rem;
         }
 
         .stats-group h5 {
@@ -86,7 +86,7 @@ st.markdown(
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--text-secondary);
-            margin-bottom: 1rem;
+            margin-bottom: 0.6rem;
             font-weight: 700;
         }
         h1, h2, h3, h4, h5, h6 {
@@ -157,13 +157,13 @@ st.markdown(
         .stats-panel {
             background: var(--panel-light);
             border-radius: 12px;
-            padding: 1.25rem;
+            padding: 1rem;
             border: 1px solid var(--border-color);
             box-shadow: var(--shadow-soft);
             height: 100%;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 1rem;
             position: relative;
             overflow: hidden;
         }
@@ -199,9 +199,9 @@ st.markdown(
         .metric-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-            margin-bottom: 1.25rem;
+            gap: 0.6rem;
+            margin-top: 0.4rem;
+            margin-bottom: 0;
         }
         
         .info-card p:last-child {
@@ -213,7 +213,7 @@ st.markdown(
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.05);
             border-radius: 8px;
-            padding: 0.75rem;
+            padding: 0.6rem;
         }
 
         .metric-card .label {
@@ -266,6 +266,23 @@ st.markdown(
             margin-bottom: 0;
             padding-bottom: 0;
             border-bottom: none;
+        }
+        
+        /* Remove default Streamlit spacing */
+        .main .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem;
+            max-width: 100%;
+        }
+        
+        /* Remove spacing around title */
+        .main .block-container > div:first-child {
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+        }
+        
+        .stMarkdown {
+            margin-bottom: 0 !important;
         }
     </style>
     """,
@@ -428,7 +445,30 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
 
 
 def main():
-    st.title("📈 SPY Trading Dashboard")
+    # Modern title header
+    st.markdown("""
+        <div style="padding: 0; margin: 0 0 0.5rem 0;">
+            <h1 style="
+                font-size: 2.5rem;
+                font-weight: 800;
+                margin: 0;
+                padding: 0;
+                letter-spacing: -0.02em;
+                background: linear-gradient(135deg, #f2f5f9 0%, #8ea0bc 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                line-height: 1.1;
+            ">SPY Trading Dashboard</h1>
+            <p style="
+                margin: 0.25rem 0 0 0;
+                font-size: 0.9rem;
+                color: #8ea0bc;
+                font-weight: 500;
+                letter-spacing: 0.05em;
+            ">0DTE OPTIONS SIGNAL SYSTEM v3.5</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Auto-refresh control in sidebar
     with st.sidebar:
@@ -500,8 +540,6 @@ def main():
             get_cached_iv_context.clear()
             st.session_state.last_refresh_counter = refresh_counter
             st.session_state.last_update = datetime.now()
-    
-    st.markdown("---")
     
     # Sidebar for navigation
     page = st.sidebar.selectbox(
@@ -633,7 +671,7 @@ def render_dashboard():
                 
                 # Build clean status bar
                 status_html = f"""
-                <div style="background: var(--panel-light); border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div style="background: var(--panel-light); border-radius: 8px; padding: 1rem 1.5rem; margin: 0 0 1.5rem 0; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
                         <div>
                             <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Data Source</div>
@@ -771,7 +809,17 @@ def render_dashboard():
         return
     
     # ========== TODAY'S REGIME HEADER ==========
-    st.header("Today's Regime")
+    st.markdown("""
+        <h2 style="
+            font-family: 'Inter', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 2rem 0 1rem 0;
+            padding: 0;
+            letter-spacing: -0.01em;
+        ">Today's Regime</h2>
+    """, unsafe_allow_html=True)
     
     trend_color = "#2bd47d" if regime['trend'] == "Bullish" else "#ff5f6d" if regime['trend'] == "Bearish" else "#f7b500"
     regime_cards = []
@@ -814,25 +862,6 @@ def render_dashboard():
     gap_body = f"""<div><div class="primary-value">{gap_sign}{regime['gap_pct']:.2f}% Gap</div><p>Range Class: {regime['range_class']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Gap ($)</div><div class="value">${regime['gap']:.2f}</div></div><div class="metric-card"><div class="label">Range %</div><div class="value">{regime['range_pct']:.2f}%</div></div><div class="metric-card" style="grid-column: span 2;"><div class="label">Session Low/High</div><div class="value">${today_data['today_low']:.2f} / ${regime['range'] + today_data['today_low']:.2f}</div></div></div>{gap_summary}"""
     regime_cards.append(build_info_card("Gap &amp; Range", "📏", gap_body, "#8ea0bc"))
     
-    status = regime['0dte_status']
-    status_color = get_status_color(status)
-    
-    # Add context metrics for 0DTE Permission
-    gap_abs = abs(regime['gap_pct'])
-    
-    # Generate 0DTE permission summary
-    def describe_0dte_permission(status, gap_abs, range_pct):
-        if status == "GREEN":
-            return f"<p><strong>0DTE outlook:</strong> High volatility day with {range_pct:.2f}% range. Directional 0DTE trades have favorable conditions; expect larger moves and clearer trends.</p>"
-        elif status == "RED":
-            return f"<p><strong>0DTE outlook:</strong> Small gap ({gap_abs:.2f}%) and low range ({range_pct:.2f}%) suggest choppy conditions. Avoid aggressive 0DTE directional trades; consider neutral strategies or wait for clearer setup.</p>"
-        else:
-            return f"<p><strong>0DTE outlook:</strong> Mixed conditions with {gap_abs:.2f}% gap and {range_pct:.2f}% range. Use caution with 0DTE trades; wait for confirmation before taking directional positions.</p>"
-    
-    permission_summary = describe_0dte_permission(status, gap_abs, regime['range_pct'])
-    permission_body = f"""<div><div class="permission-bar" style="background:{status_color}; font-size:1.4rem; padding:1.5rem;">{status}</div><p style="text-align:center; margin-bottom:1rem;">{regime['0dte_reason']}</p><div class="metric-grid"><div class="metric-card"><div class="label">Gap Size</div><div class="value">{gap_abs:.2f}%</div></div><div class="metric-card"><div class="label">Range</div><div class="value">{regime['range_pct']:.2f}%</div></div></div>{permission_summary}</div>"""
-    regime_cards.append(build_info_card("0DTE Permission", "🚦", permission_body, status_color))
-
     # IV context card
     def describe_iv(atm, level, rank, perc):
         if atm is None or level is None:
@@ -889,11 +918,40 @@ def render_dashboard():
     iv_body = "".join(iv_body_parts)
     regime_cards.append(build_info_card("Volatility Context", "⚡", iv_body, "#8ea0bc"))
     
+    status = regime['0dte_status']
+    status_color = get_status_color(status)
+    
+    # Add context metrics for 0DTE Permission
+    gap_abs = abs(regime['gap_pct'])
+    
+    # Generate 0DTE permission summary
+    def describe_0dte_permission(status, gap_abs, range_pct):
+        if status == "GREEN":
+            return f"<p><strong>0DTE outlook:</strong> High volatility day with {range_pct:.2f}% range. Directional 0DTE trades have favorable conditions; expect larger moves and clearer trends.</p>"
+        elif status == "RED":
+            return f"<p><strong>0DTE outlook:</strong> Small gap ({gap_abs:.2f}%) and low range ({range_pct:.2f}%) suggest choppy conditions. Avoid aggressive 0DTE directional trades; consider neutral strategies or wait for clearer setup.</p>"
+        else:
+            return f"<p><strong>0DTE outlook:</strong> Mixed conditions with {gap_abs:.2f}% gap and {range_pct:.2f}% range. Use caution with 0DTE trades; wait for confirmation before taking directional positions.</p>"
+    
+    permission_summary = describe_0dte_permission(status, gap_abs, regime['range_pct'])
+    permission_body = f"""<div><div class="permission-bar" style="background:{status_color}; font-size:1.4rem; padding:1.5rem;">{status}</div><p style="text-align:center; margin-bottom:1rem;">{regime['0dte_reason']}</p><div class="metric-grid"><div class="metric-card"><div class="label">Gap Size</div><div class="value">{gap_abs:.2f}%</div></div><div class="metric-card"><div class="label">Range</div><div class="value">{regime['range_pct']:.2f}%</div></div></div>{permission_summary}</div>"""
+    regime_cards.append(build_info_card("0DTE Permission", "🚦", permission_body, status_color))
+    
     st.markdown(f"<div class='card-strip'>{''.join(regime_cards)}</div>", unsafe_allow_html=True)
     
     
     # ========== INTRADAY SPY PANEL ==========
-    st.header("Intraday SPY Analysis")
+    st.markdown("""
+        <h2 style="
+            font-family: 'Inter', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 2rem 0 1rem 0;
+            padding: 0;
+            letter-spacing: -0.01em;
+        ">Intraday SPY Analysis</h2>
+    """, unsafe_allow_html=True)
     
     col_left, col_right = st.columns([3, 1.3], gap="large")
     
@@ -961,7 +1019,17 @@ def render_dashboard():
     
     
     # ========== BIAS / SIGNAL BOX ==========
-    st.header("Trading Bias / Signal")
+    st.markdown("""
+        <h2 style="
+            font-family: 'Inter', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 2rem 0 1rem 0;
+            padding: 0;
+            letter-spacing: -0.01em;
+        ">Trading Bias / Signal</h2>
+    """, unsafe_allow_html=True)
     
     signal_direction = signal['direction']
     signal_confidence = signal['confidence']
@@ -995,20 +1063,45 @@ def render_dashboard():
         </div>
     """
     
-    # Rationale card
-    rationale_body = f"""
-        <div>
-            <div class="rationale-content">
-                <ul style="list-style:none; padding:0; margin:0;">
-                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">{signal['reason']}</li>
-                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Trend Frame: {regime['trend']}</li>
-                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Micro Trend: {intraday_analysis['micro_trend']} (EMA {config.EMA_FAST}/{config.EMA_SLOW})</li>
-                    <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Price vs VWAP: {"Above" if intraday_analysis['price'] > intraday_analysis['vwap'] else "Below"}</li>
-                    <li style="margin-bottom:0;">5-Bar Return: {intraday_analysis['return_5']:.2f}% | VWAP Dist: {intraday_analysis['vwap_distance']:.2f}%</li>
-                </ul>
+    # Rationale card - Check if market is open
+    # market_status is defined earlier in the render_dashboard function
+    if market_status == "CLOSED":
+        # Show clean message during pre-market/after-hours
+        if session_label == "Pre-Market":
+            rationale_message = "Pre-market session. Signal analysis will resume at 9:45 AM ET."
+            rationale_emoji = "🌅"
+        elif session_label == "After Hours":
+            rationale_message = "After-hours session. Signal analysis paused until next trading day."
+            rationale_emoji = "🌙"
+        else:
+            rationale_message = "Market is currently closed. Signal analysis paused."
+            rationale_emoji = "⏸️"
+        
+        rationale_body = f"""
+            <div>
+                <div class="rationale-content" style="text-align:center; padding:2rem 1rem;">
+                    <div style="font-size:3rem; margin-bottom:1rem;">{rationale_emoji}</div>
+                    <div style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6;">
+                        {rationale_message}
+                    </div>
+                </div>
             </div>
-        </div>
-    """
+        """
+    else:
+        # Market is open - show full rationale
+        rationale_body = f"""
+            <div>
+                <div class="rationale-content">
+                    <ul style="list-style:none; padding:0; margin:0;">
+                        <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">{signal['reason']}</li>
+                        <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Trend Frame: {regime['trend']}</li>
+                        <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Micro Trend: {intraday_analysis['micro_trend']} (EMA {config.EMA_FAST}/{config.EMA_SLOW})</li>
+                        <li style="margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);">Price vs VWAP: {"Above" if intraday_analysis['price'] > intraday_analysis['vwap'] else "Below"}</li>
+                        <li style="margin-bottom:0;">5-Bar Return: {intraday_analysis['return_5']:.2f}% | VWAP Dist: {intraday_analysis['vwap_distance']:.2f}%</li>
+                    </ul>
+                </div>
+            </div>
+        """
     
     signal_cards = []
     signal_cards.append(build_info_card("Signal", "🎯", signal_body, direction_color))
