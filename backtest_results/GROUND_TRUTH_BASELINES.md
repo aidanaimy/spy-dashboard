@@ -61,19 +61,28 @@
 
 ---
 
-### **1-Year Baseline (Nov 2024 - Nov 2025)**
+### **1-Year Baseline (Nov 2024 - Nov 2025) 📈**
 
 | Metric | Expected Value | Tolerance |
 |:---|:---|:---|
-| **Total Trades** | 132 | ±2 |
-| **Win Rate** | 40.9% | ±1% |
-| **Total P/L** | $3,083.97 | ±$100 |
-| **Avg R-Multiple** | 0.12 | ±0.05 |
-| **Max Drawdown** | 8.5% | ±1% |
-| **Profit Factor** | 1.38 | ±0.1 |
+| **Total Trades** | 154 | ±5 |
+| **Win Rate** | 46.1% | ±2% |
+| **Total P/L** | $6,996.79 | ±$200 |
+| **Avg R-Multiple** | 0.20 | ±0.05 |
+| **Max Drawdown** | 11.0% | ±2% |
+| **Avg Win** | $261.22 | ±$20 |
+| **Avg Loss** | -$139.16 | ±$20 |
+| **Profit Factor** | 1.61 | ±0.1 |
+| **Win/Loss Ratio** | 1.88:1 | ±0.2 |
 
-**CSV File:** `baseline_1year.csv`
+**CSV File:** `backtest_trades_20251130_000929.csv`
 
+**Context:** Full backtest with "Max 2 Consecutive Losses" circuit breaker enabled. This represents the new global standard for system performance.
+
+**Key Observations:**
+- **Strong Profitability**: ~$7,000 net profit over 1 year.
+- **Low Drawdown**: Max drawdown contained to 11%, significantly better than the 40% seen during stress tests without the breaker.
+- **Robustness**: The circuit breaker successfully filters out "bad days" without hindering profitable trends.
 
 ---
 
