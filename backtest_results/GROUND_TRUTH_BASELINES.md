@@ -14,10 +14,10 @@
 - **Trading Days:** 20
 - **Data Source:** Alpaca (5-minute bars)
 
-### **Test 2: 1-Year Period**
-- **Start Date:** 2024-11-01
+### **Test 2: 1.5-Year Period**
+- **Start Date:** 2024-04-01
 - **End Date:** 2025-11-30
-- **Trading Days:** 262
+- **Trading Days:** ~400
 - **Data Source:** Alpaca (5-minute bars)
 
 ---
