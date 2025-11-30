@@ -40,27 +40,6 @@
 
 ---
 
-### **2-Year Baseline (Nov 2023 - Nov 2025) ⭐ PRIMARY BASELINE**
-
-| Metric | Expected Value | Tolerance |
-|:---|:---|:---|
-| **Total Trades** | 167 | ±3 |
-| **Win Rate** | 44.3% | ±1% |
-| **Total P/L** | $5,552.37 | ±$150 |
-| **Avg R-Multiple** | 0.17 | ±0.05 |
-| **Max Drawdown** | 21.8% | ±2% |
-| **Avg Win** | $258.60 | ±$30 |
-| **Avg Loss** | -$146.06 | ±$30 |
-| **Profit Factor** | 1.41 | ±0.1 |
-| **Commissions** | $58.75 | ±$10 |
-
-**CSV File:** `baseline_2year.csv`  
-**Equity Curve:** `equity_curve_2year.png`
-
-**Performance:** +55.5% return over 2 years (27.8% annualized)
-
----
-
 ### **1.5-Year Baseline (Apr 2024 - Nov 2025) 📈**
 
 | Metric | Expected Value | Tolerance |
@@ -135,6 +114,7 @@ BACKTEST_MAX_SPREAD_FILTER = 0.15       # 15% max spread
 # Trading Rules
 BACKTEST_REENTRY_COOLDOWN_MINUTES = 30  # 30-min cooldown after SL
 BLOCK_TRADE_AFTER = "14:30"             # No new entries after 2:30 PM
+MAX_CONSECUTIVE_LOSSES = 2              # Circuit Breaker: Stop after 2 losses/day
 
 # Signal Filters
 - HIGH confidence only
@@ -160,15 +140,16 @@ Win Rate: 55.6%
 Total P/L: $1,669.22
 ```
 
-### **Full Test (1-Year):**
+### **Full Test (1.5-Year):**
 ```bash
-python generate_baselines.py
+python run_full_backtest.py
 ```
 
 **Expected output:**
 ```
-November 2025: 18 trades, 55.6% win rate, $1,669.22 P/L
-1 Year: 132 trades, 40.9% win rate, $3,083.97 P/L
+Total Trades: 154
+Win Rate: 46.1%
+Total P/L: $6,996.79
 ```
 
 ---
@@ -182,7 +163,7 @@ November 2025: 18 trades, 55.6% win rate, $1,669.22 P/L
 
 ### **FAIL Criteria (Investigate Immediately):**
 - Trade count differs by >2 trades
-- P/L differs by >$100 (1-year) or >$10 (November)
+- P/L differs by >$100 (1.5-year) or >$10 (November)
 - Win rate differs by >1%
 - Different trades executed (check CSV)
 
@@ -193,6 +174,7 @@ November 2025: 18 trades, 55.6% win rate, $1,669.22 P/L
 4. ❌ Modified Black-Scholes pricing logic
 5. ❌ Changed commission/slippage calculations
 6. ❌ Updated VIX hard deck threshold
+7. ❌ Disabled Circuit Breaker
 
 ---
 
@@ -201,7 +183,7 @@ November 2025: 18 trades, 55.6% win rate, $1,669.22 P/L
 Before accepting new code changes, verify:
 
 - [ ] November 2025 test passes (18 trades, $1,669 P/L)
-- [ ] 1-Year test passes (132 trades, $3,084 P/L)
+- [ ] 1.5-Year test passes (154 trades, $6,996 P/L)
 - [ ] Local and hosted dashboards match
 - [ ] `audit_system.py` shows 100% pass rate
 - [ ] CSV files match baseline CSVs (same trades, same order)
@@ -210,17 +192,20 @@ Before accepting new code changes, verify:
 
 ## 📅 Baseline History
 
+### **v3.6 (November 30, 2025) - Circuit Breaker Enabled 🛡️**
+- Commit: `0b6688a`
+- Features: **Max 2 Consecutive Losses Circuit Breaker**, Global Signal Suppression
+- **1.5-Year (Apr 2024 - Nov 2025):** 154 trades, 46.1% WR, +$6,996 P/L
+- **November 2025:** 18 trades, 55.6% WR, +$1,669 P/L (Unchanged)
+- **Liberation Day (Apr 2025):** 44 trades, 34.1% WR, -$731 P/L (Improved from -$2,642)
+- **Max Drawdown:** 11.0% (Improved from 21.8%)
+- **Profit Factor:** 1.61
+
 ### **v3.5 (November 29, 2025) - 2-Year Baseline ⭐**
 - Commit: `78ca814`
 - Features: Wide stops (80% TP / 40% SL), realistic costs, VIX hard deck
 - **2-Year (Nov 2023 - Nov 2025):** 167 trades, 44.3% WR, +$5,552 P/L (+55.5% return)
-- **1-Year (Nov 2024 - Nov 2025):** 132 trades, 40.9% WR, +$3,084 P/L (+30.8% return)
-- **November 2025:** 18 trades, 55.6% WR, +$1,669 P/L (+16.7% return)
 - **Liberation Day (Apr 2025):** 55 trades, 29.1% WR, -$2,642 P/L (Stress Test)
-- **Annualized Return:** 27.8%
-- **Max Drawdown:** 21.8%
-- **Profit Factor:** 1.41
-
 
 ---
 
@@ -228,8 +213,8 @@ Before accepting new code changes, verify:
 
 **Baseline CSV Files (DO NOT MODIFY):**
 - `baseline_november_2025.csv` - 18 trades with full details
-- `baseline_1year.csv` - 132 trades with full details
-- `baseline_liberation_day_april2025.csv` - 55 trades (Stress Test)
+- `backtest_trades_20251130_000929.csv` - 154 trades (1.5-Year Baseline)
+- `baseline_liberation_day_april2025.csv` - 44 trades (Stress Test with Circuit Breaker)
 
 **Verification:**
 ```bash
@@ -237,8 +222,8 @@ Before accepting new code changes, verify:
 wc -l backtest_results/baseline_november_2025.csv
 # Expected: 19 lines (18 trades + 1 header)
 
-wc -l backtest_results/baseline_1year.csv
-# Expected: 133 lines (132 trades + 1 header)
+wc -l backtest_results/backtest_trades_20251130_000929.csv
+# Expected: 155 lines (154 trades + 1 header)
 ```
 
 ---
