@@ -61,7 +61,7 @@
 
 ---
 
-### **1-Year Baseline (Nov 2024 - Nov 2025) 📈**
+### **1.5-Year Baseline (Apr 2024 - Nov 2025) 📈**
 
 | Metric | Expected Value | Tolerance |
 |:---|:---|:---|
@@ -77,10 +77,10 @@
 
 **CSV File:** `backtest_trades_20251130_000929.csv`
 
-**Context:** Full backtest with "Max 2 Consecutive Losses" circuit breaker enabled. This represents the new global standard for system performance.
+**Context:** Full 19-month backtest (Apr 2024 - Nov 2025) with "Max 2 Consecutive Losses" circuit breaker enabled. This represents the new global standard for system performance.
 
 **Key Observations:**
-- **Strong Profitability**: ~$7,000 net profit over 1 year.
+- **Strong Profitability**: ~$7,000 net profit over 19 months.
 - **Low Drawdown**: Max drawdown contained to 11%, significantly better than the 40% seen during stress tests without the breaker.
 - **Robustness**: The circuit breaker successfully filters out "bad days" without hindering profitable trends.
 
