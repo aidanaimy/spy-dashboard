@@ -138,6 +138,10 @@ class BacktestEngine:
         last_stop_loss = None  # {'direction': 'LONG'/'SHORT', 'time': datetime} - track last SL for cooldown
         equity = 10000.0  # Starting equity
         
+        # Circuit Breaker: Track consecutive losses per day
+        daily_consecutive_losses = {}  # {date: count} - track consecutive losses per day
+        circuit_breaker_triggered_days = set()  # Set of dates where circuit breaker was triggered
+        
         # Debug counters
         days_processed = 0
         days_skipped = 0
@@ -379,6 +383,19 @@ class BacktestEngine:
                                             'reason': current_position.get('signal_reason', 'N/A'),
                                             '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                         })
+                                        
+                                        # Circuit Breaker: Update consecutive loss counter
+                                        trade_day = idx.date() if hasattr(idx, 'date') else pd.to_datetime(idx).date()
+                                        if trade_day not in daily_consecutive_losses:
+                                            daily_consecutive_losses[trade_day] = 0
+                                        
+                                        if pnl < 0:  # Loss
+                                            daily_consecutive_losses[trade_day] += 1
+                                            if daily_consecutive_losses[trade_day] >= 2:
+                                                circuit_breaker_triggered_days.add(trade_day)
+                                        else:  # Win or breakeven
+                                            daily_consecutive_losses[trade_day] = 0  # Reset counter
+                                        
                                         current_position = None
                                 else:
                                     # Shares mode
@@ -414,6 +431,19 @@ class BacktestEngine:
                                             'reason': current_position.get('signal_reason', 'N/A'),
                                             '0dte_permission': current_position.get('0dte_permission', 'N/A')
                                         })
+                                        
+                                        # Circuit Breaker: Update consecutive loss counter
+                                        trade_day = idx.date() if hasattr(idx, 'date') else pd.to_datetime(idx).date()
+                                        if trade_day not in daily_consecutive_losses:
+                                            daily_consecutive_losses[trade_day] = 0
+                                        
+                                        if pnl < 0:  # Loss
+                                            daily_consecutive_losses[trade_day] += 1
+                                            if daily_consecutive_losses[trade_day] >= 2:
+                                                circuit_breaker_triggered_days.add(trade_day)
+                                        else:  # Win or breakeven
+                                            daily_consecutive_losses[trade_day] = 0  # Reset counter
+                                        
                                         current_position = None
                             
                             # Skip signal generation and entry after block time
@@ -535,6 +565,18 @@ class BacktestEngine:
                                             'time': idx
                                         }
                                     
+                                    # Circuit Breaker: Update consecutive loss counter
+                                    trade_day = idx.date() if hasattr(idx, 'date') else pd.to_datetime(idx).date()
+                                    if trade_day not in daily_consecutive_losses:
+                                        daily_consecutive_losses[trade_day] = 0
+                                    
+                                    if pnl < 0:  # Loss
+                                        daily_consecutive_losses[trade_day] += 1
+                                        if daily_consecutive_losses[trade_day] >= 2:
+                                            circuit_breaker_triggered_days.add(trade_day)
+                                    else:  # Win or breakeven
+                                        daily_consecutive_losses[trade_day] = 0  # Reset counter
+                                    
                                     current_position = None
                             else:
                                 # Shares mode: Calculate P/L percentage based on underlying
@@ -583,6 +625,18 @@ class BacktestEngine:
                                             'time': idx
                                         }
                                     
+                                    # Circuit Breaker: Update consecutive loss counter
+                                    trade_day = idx.date() if hasattr(idx, 'date') else pd.to_datetime(idx).date()
+                                    if trade_day not in daily_consecutive_losses:
+                                        daily_consecutive_losses[trade_day] = 0
+                                    
+                                    if pnl < 0:  # Loss
+                                        daily_consecutive_losses[trade_day] += 1
+                                        if daily_consecutive_losses[trade_day] >= 2:
+                                            circuit_breaker_triggered_days.add(trade_day)
+                                    else:  # Win or breakeven
+                                        daily_consecutive_losses[trade_day] = 0  # Reset counter
+                                    
                                     current_position = None
                         
                         # Check for entry if no position
@@ -598,7 +652,12 @@ class BacktestEngine:
                                 if same_direction and time_since_stop < config.BACKTEST_REENTRY_COOLDOWN_MINUTES:
                                     skip_due_to_cooldown = True
                             
-                            if not skip_due_to_cooldown:
+                            
+                            # Check circuit breaker: don't enter if 2 consecutive losses today
+                            current_day = idx.date() if hasattr(idx, 'date') else pd.to_datetime(idx).date()
+                            skip_due_to_circuit_breaker = current_day in circuit_breaker_triggered_days
+                            
+                            if not skip_due_to_cooldown and not skip_due_to_circuit_breaker:
                                 if self.use_options:
                                     # Options mode: Calculate option price at entry
                                     # Note: options_mode filter already ensures only HIGH confidence signals pass
@@ -850,6 +909,18 @@ class BacktestEngine:
                             'reason': current_position.get('signal_reason', 'N/A'),
                             '0dte_permission': current_position.get('0dte_permission', 'N/A')
                         })
+                        
+                        # Circuit Breaker: Update consecutive loss counter
+                        trade_day = exit_time.date() if hasattr(exit_time, 'date') else pd.to_datetime(exit_time).date()
+                        if trade_day not in daily_consecutive_losses:
+                            daily_consecutive_losses[trade_day] = 0
+                        
+                        if pnl < 0:  # Loss
+                            daily_consecutive_losses[trade_day] += 1
+                            if daily_consecutive_losses[trade_day] >= 2:
+                                circuit_breaker_triggered_days.add(trade_day)
+                        else:  # Win or breakeven
+                            daily_consecutive_losses[trade_day] = 0  # Reset counter
                     
                     current_position = None
                     
