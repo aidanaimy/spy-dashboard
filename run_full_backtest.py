@@ -138,15 +138,86 @@ def run_full_backtest():
             print(f"  Signals Generated: {debug.get('signals_generated', 0)}")
             print()
         
-        # Save detailed results
+        # Save detailed results to CSV and plot equity curve
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest_results")
+        os.makedirs(results_dir, exist_ok=True)
+        
+        trades_file = os.path.join(results_dir, f"backtest_trades_{timestamp}.csv")
         if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
-            # Create results directory if it doesn't exist
-            results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backtest_results')
-            os.makedirs(results_dir, exist_ok=True)
+            trades_df.to_csv(trades_file, index=False)
+            print(f"💾 Trades saved to: {trades_file}")
             
-            output_file = os.path.join(results_dir, f"backtest_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
-            trades_df.to_csv(output_file, index=False)
-            print(f"💾 Detailed results saved to: {output_file}")
+            # --- EQUITY CURVE COMPARISON ---
+            print("\n📈 Generating Equity Curve Comparison...")
+            try:
+                import matplotlib.pyplot as plt
+                import yfinance as yf
+                
+                # 1. Get Strategy Equity Curve
+                equity_curve = results.get('equity_curve')
+                if equity_curve is not None and not equity_curve.empty:
+                    # Ensure timestamp is datetime
+                    equity_curve['timestamp'] = pd.to_datetime(equity_curve['timestamp'])
+                    equity_curve.set_index('timestamp', inplace=True)
+                    
+                    # Resample to daily close to match SPY data (take last equity of the day)
+                    strategy_daily = equity_curve['equity'].resample('D').last().dropna()
+                    
+                    # 2. Get SPY Benchmark Data
+                    print("   Fetching SPY benchmark data...")
+                    spy = yf.Ticker("SPY")
+                    # Fetch data covering the backtest period
+                    spy_hist = spy.history(start=start_date, end=end_date)
+                    
+                    if not spy_hist.empty:
+                        # Normalize SPY to start at the same equity as the strategy
+                        initial_equity = getattr(config, 'ACCOUNT_SIZE', 10000)
+                        spy_start_price = spy_hist['Close'].iloc[0]
+                        spy_hist['Normalized_Equity'] = (spy_hist['Close'] / spy_start_price) * initial_equity
+                        
+                        # Align dates
+                        combined_df = pd.DataFrame(index=spy_hist.index)
+                        combined_df['SPY_Buy_Hold'] = spy_hist['Normalized_Equity']
+                        combined_df['Strategy'] = strategy_daily
+                        
+                        # Forward fill strategy equity (for days with no trades)
+                        combined_df['Strategy'] = combined_df['Strategy'].fillna(method='ffill')
+                        # Fill initial NaN with starting capital if needed
+                        combined_df['Strategy'] = combined_df['Strategy'].fillna(initial_equity)
+                        
+                        # 3. Plot
+                        plt.figure(figsize=(12, 6))
+                        plt.plot(combined_df.index, combined_df['Strategy'], label='V3.5 Strategy', color='green', linewidth=2)
+                        plt.plot(combined_df.index, combined_df['SPY_Buy_Hold'], label='SPY Buy & Hold', color='gray', linestyle='--', alpha=0.7)
+                        
+                        plt.title('Equity Curve Comparison: V3.5 Strategy vs SPY Buy & Hold', fontsize=14)
+                        plt.xlabel('Date')
+                        plt.ylabel('Account Value ($)')
+                        plt.legend()
+                        plt.grid(True, alpha=0.3)
+                        
+                        # Format y-axis as currency
+                        import matplotlib.ticker as mtick
+                        fmt = '${x:,.0f}'
+                        tick = mtick.StrMethodFormatter(fmt)
+                        plt.gca().yaxis.set_major_formatter(tick)
+                        
+                        # Save plot
+                        plot_file = os.path.join(results_dir, f"equity_curve_comparison_{timestamp}.png")
+                        plt.savefig(plot_file)
+                        print(f"🖼️  Chart saved to: {plot_file}")
+                        
+                    else:
+                        print("⚠️  Could not fetch SPY data for comparison.")
+                else:
+                    print("⚠️  No equity curve data available to plot.")
+                    
+            except ImportError:
+                print("⚠️  matplotlib or yfinance not installed. Skipping plot.")
+            except Exception as e:
+                print(f"⚠️  Error generating plot: {e}")
+            
             print()
             
             # Show sample trades

@@ -60,6 +60,7 @@ CHOP_VWAP_RANGE_THRESHOLD = 0.002  # Range inside VWAP ±0.2% = chop
 BACKTEST_TP_PCT = 0.007   # Take profit: 0.7% (for shares)
 BACKTEST_SL_PCT = 0.003   # Stop loss: 0.3% (for shares)
 BACKTEST_POSITION_SIZE = 100  # Number of shares
+ACCOUNT_SIZE = 10000  # Initial capital for backtest normalization
 
 # Options Backtest parameters (V3.5 - Wide Stops)
 BACKTEST_OPTIONS_TP_PCT = 0.8   # Take profit: 80% (captures full 0DTE moves, reduces overtrading)
