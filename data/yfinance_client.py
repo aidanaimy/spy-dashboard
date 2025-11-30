@@ -14,11 +14,11 @@ import config
 def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBACK_DAYS) -> pd.DataFrame:
     """
     Fetch daily OHLCV data for the symbol.
-    
+
     Args:
         symbol: Stock symbol (default: SPY)
         days: Number of days to look back
-        
+
     Returns:
         DataFrame with columns: Open, High, Low, Close, Volume
     """
@@ -26,15 +26,40 @@ def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBAC
         ticker = yf.Ticker(symbol)
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
-        
+
         df = ticker.history(start=start_date, end=end_date, interval="1d")
-        
+
         if df.empty:
             raise ValueError(f"No data returned for {symbol}")
-        
+
         return df
     except Exception as e:
         raise Exception(f"Error fetching daily data for {symbol}: {str(e)}")
+
+
+def get_daily_data_for_period(symbol: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+    """
+    Fetch daily OHLCV data for the symbol for a specific date range.
+
+    Args:
+        symbol: Stock symbol (default: SPY)
+        start_date: Start date for data
+        end_date: End date for data
+
+    Returns:
+        DataFrame with columns: Open, High, Low, Close, Volume
+    """
+    try:
+        ticker = yf.Ticker(symbol)
+
+        df = ticker.history(start=start_date, end=end_date, interval="1d")
+
+        if df.empty:
+            raise ValueError(f"No data returned for {symbol} from {start_date.date()} to {end_date.date()}")
+
+        return df
+    except Exception as e:
+        raise Exception(f"Error fetching daily data for {symbol} from {start_date.date()} to {end_date.date()}: {str(e)}")
 
 
 def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRADAY_INTERVAL, 

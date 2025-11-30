@@ -1,0 +1,22 @@
+NULL HYPOTHESIS TEST RESULTS
+================================================================================
+
+Period: 2024-11-28 to 2025-11-28
+Iterations: 5
+
+ACTUAL SYSTEM:
+  Trades: 214
+  Win Rate: 0.4%
+  Total P/L: $2573.45
+  Profit Factor: 1.18
+
+RANDOM SIGNALS (avg):
+  Trades: 364
+  Win Rate: 0.3%
+  Total P/L: $2863.89 (±$2375.35)
+  Profit Factor: 1.11
+
+IMPROVEMENT:
+  P/L: -10.1%
+  Win Rate: +0.0 pp
+  Profit Factor: +0.06

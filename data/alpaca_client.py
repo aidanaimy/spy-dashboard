@@ -150,9 +150,81 @@ def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBAC
         bars = bars[bars.index <= end_date_naive]
         
         return bars
-    
+
     except Exception as e:
         raise Exception(f"Error fetching daily data for {symbol}: {str(e)}")
+
+
+def get_daily_data_for_period(symbol: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+    """
+    Fetch daily OHLCV data for the symbol for a specific date range using Alpaca.
+
+    Args:
+        symbol: Stock symbol (default: SPY)
+        start_date: Start date for data
+        end_date: End date for data
+
+    Returns:
+        DataFrame with columns: Open, High, Low, Close, Volume
+    """
+    api_client = get_alpaca_api()
+    if api_client is None:
+        raise Exception("Alpaca API not initialized")
+
+    try:
+        # Alpaca expects date strings in YYYY-MM-DD format
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+
+        # Try SIP first (if available), fall back to IEX
+        bar_set = None
+        try:
+            bar_set = api_client.get_bars(
+                symbol,
+                '1Day',
+                start=start_str,
+                end=end_str,
+                adjustment='raw'
+            )
+        except Exception:
+            # Fallback to IEX if default fails
+            try:
+                bar_set = api_client.get_bars(
+                    symbol,
+                    '1Day',
+                    start=start_str,
+                    end=end_str,
+                    adjustment='raw',
+                    feed='iex'
+                )
+            except Exception:
+                raise Exception("Failed to fetch data from both SIP and IEX feeds")
+
+        if not bar_set:
+            raise ValueError(f"No data returned for {symbol}")
+
+        # Convert to DataFrame
+        bars = bar_set.df
+        if bars.empty:
+            raise ValueError(f"No data returned for {symbol}")
+
+        # Rename columns to match yfinance format
+        bars = bars.rename(columns={
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume'
+        })
+
+        # Alpaca returns UTC timestamps - convert to timezone-naive for consistency
+        if bars.index.tz is not None:
+            bars.index = bars.index.tz_localize(None)
+
+        return bars
+
+    except Exception as e:
+        raise Exception(f"Error fetching daily data for {symbol} from {start_date.date()} to {end_date.date()}: {str(e)}")
 
 
 def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRADAY_INTERVAL,

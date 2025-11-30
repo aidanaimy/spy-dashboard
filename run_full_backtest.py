@@ -60,14 +60,22 @@ def run_full_backtest():
         print()
         
         # Summary metrics
-        print("📊 PERFORMANCE SUMMARY:")
+        print("📊 PERFORMANCE SUMMARY (NET OF ALL COSTS):")
         print(f"  Total Trades: {results['num_trades']}")
         print(f"  Win Rate: {results['win_rate']:.1%}")
         print(f"  Avg R-Multiple: {results['avg_r_multiple']:.2f}")
         print(f"  Max Drawdown: {results['max_drawdown']:.1%}")
-        print(f"  Total P/L: ${results['total_pnl']:,.2f}")
-        print(f"  Avg Win: ${results['avg_win']:.2f}")
-        print(f"  Avg Loss: ${results['avg_loss']:.2f}")
+        print(f"  Net P/L: ${results['total_pnl']:,.2f}")
+
+        # Handle case of no trades
+        if results['num_trades'] > 0:
+            print(f"  Avg Win: ${results['avg_win']:.2f}")
+            print(f"  Avg Loss: ${results['avg_loss']:.2f}")
+        else:
+            print("  Avg Win: $0.00 (no trades)")
+            print("  Avg Loss: $0.00 (no trades)")
+
+        print(f"  Commissions Paid: ${results.get('total_commissions', 0):,.2f}")
         print()
         
         # Detailed Analysis

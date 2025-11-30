@@ -68,6 +68,11 @@ BACKTEST_OPTIONS_CONTRACTS = 1  # Number of contracts (start with 1, scale after
 BACKTEST_RISK_FREE_RATE = 0.045 # 4.5% annual risk-free rate
 BACKTEST_REENTRY_COOLDOWN_MINUTES = 30  # Wait 30 min after stop loss before re-entering same direction
 
+# Realistic trading costs (for net P/L calculation)
+BACKTEST_COMMISSION_PER_CONTRACT = 1.25  # $1.25 per contract (round trip)
+BACKTEST_SLIPPAGE_PCT = 0.001  # 0.1% slippage on entry/exit
+BACKTEST_MAX_SPREAD_FILTER = 0.15  # 15% max bid/ask spread (realistic for 0DTE options)
+
 # Auto-refresh
 AUTO_REFRESH_ENABLED = True
 AUTO_REFRESH_INTERVAL = 30000  # 30 seconds in ms

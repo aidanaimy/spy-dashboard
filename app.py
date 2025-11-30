@@ -3,7 +3,7 @@ Main Streamlit app for SPY small-DTE trading dashboard.
 """
 
 import os
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo
 
@@ -268,183 +268,69 @@ st.markdown(
             border-bottom: none;
         }
         
-        /* Sidebar styling */
-        [data-testid="stSidebar"] {
-            background: #0f1724 !important;
-        }
-
-        [data-testid="stSidebarContent"] {
-            background: #0f1724 !important;
-        }
-
-        .stSidebar {
-            background: #0f1724 !important;
-        }
-
-        /* Force sidebar background */
-        div[data-testid="stSidebar"] > div {
-            background: #0f1724 !important;
-        }
-
-        .sidebar-settings-section {
-            padding: 0.25rem 1.5rem 1rem 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .sidebar-settings-section h3 {
-            margin: 0 0 0.25rem 0;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-            font-weight: 600;
-        }
-
-        /* Style sidebar checkboxes */
-        .sidebar-settings-section .stCheckbox {
-            margin-bottom: 0.5rem;
-        }
-
-        .sidebar-settings-section .stCheckbox label {
-            color: var(--text-primary) !important;
-            font-weight: 500 !important;
-            font-size: 0.9rem !important;
-        }
-
-        /* Style sidebar buttons */
-        .sidebar-settings-section .stButton button {
-            background: var(--panel-light) !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 8px !important;
-            color: var(--text-primary) !important;
-            font-weight: 600 !important;
-            font-size: 0.9rem !important;
-            padding: 0.5rem 0.75rem !important;
-            transition: all 0.2s ease !important;
-            width: 100% !important;
-            margin-bottom: 0.5rem !important;
-        }
-
-        .sidebar-settings-section .stButton button:hover {
-            background: rgba(255,255,255,0.05) !important;
-            border-color: rgba(255,255,255,0.2) !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        }
-
-        .sidebar-settings-section .stButton button:active {
-            transform: translateY(0) !important;
-        }
-
-        /* Primary button styling */
-        .sidebar-settings-section .stButton button[kind="primary"] {
-            background: linear-gradient(135deg, #2bd47d, #25b86f) !important;
-            border: none !important;
-            color: white !important;
-        }
-
-        .sidebar-settings-section .stButton button[kind="primary"]:hover {
-            background: linear-gradient(135deg, #25b86f, #20a864) !important;
-            box-shadow: 0 4px 16px rgba(43,212,125,0.3) !important;
-        }
-
-        /* Secondary button styling */
-        .sidebar-settings-section .stButton button[kind="secondary"] {
-            background: rgba(255,95,109,0.1) !important;
-            border: 1px solid rgba(255,95,109,0.3) !important;
-            color: #ff5f6d !important;
-        }
-
-        .sidebar-settings-section .stButton button[kind="secondary"]:hover {
-            background: rgba(255,95,109,0.15) !important;
-            border-color: rgba(255,95,109,0.5) !important;
-        }
-
-        /* Last update display */
-        .sidebar-last-update {
-            background: rgba(43,212,125,0.1);
-            border: 1px solid rgba(43,212,125,0.3);
-            border-radius: 8px;
-            padding: 0.5rem;
-            margin-top: 0.5rem;
-            text-align: center;
-        }
-
-        .sidebar-last-update .update-label {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.25rem;
-        }
-
-        .sidebar-last-update .update-time {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--accent-green);
-        }
-
-        /* Navigation section styling */
-        .sidebar-navigation {
-            margin-top: 1.5rem;
-            padding: 1rem 0;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .sidebar-navigation h4 {
-            margin: 0 0 0.25rem 0 !important;
-            font-size: 1.1rem !important;
-            text-transform: uppercase !important;
-            letter-spacing: 0.05em !important;
-            color: var(--text-secondary) !important;
-            font-weight: 600 !important;
-        }
-
-        /* Navigation button styling */
-        .sidebar-navigation .stButton button {
-            background: var(--panel-light) !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 8px !important;
-            color: var(--text-primary) !important;
-            font-weight: 600 !important;
-            font-size: 0.9rem !important;
-            padding: 0.75rem 1rem !important;
-            transition: all 0.2s ease !important;
-            margin: 0.25rem 0 !important;
-            min-height: 44px !important;
-            width: 100% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            text-align: center !important;
-        }
-
-        .sidebar-navigation .stButton button:hover {
-            background: rgba(255,255,255,0.05) !important;
-            border-color: rgba(255,255,255,0.2) !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        }
-
-        .sidebar-navigation .stButton button:active {
-            transform: translateY(0) !important;
-        }
-
         /* Remove default Streamlit spacing */
         .main .block-container {
             padding-top: 1rem !important;
             padding-bottom: 1rem;
             max-width: 100%;
         }
-
+        
         /* Remove spacing around title */
         .main .block-container > div:first-child {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
-
+        
         .stMarkdown {
             margin-bottom: 0 !important;
+        }
+        
+        /* Sidebar Styling */
+        [data-testid="stSidebar"] {
+            background-color: var(--panel-dark);
+            border-right: 1px solid var(--border-color);
+        }
+        
+        [data-testid="stSidebar"] .stMarkdown, 
+        [data-testid="stSidebar"] .stText,
+        [data-testid="stSidebar"] label {
+            color: var(--text-secondary) !important;
+        }
+        
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3 {
+            color: var(--text-primary) !important;
+        }
+        
+        /* Sidebar Buttons */
+        [data-testid="stSidebar"] .stButton button {
+            background-color: var(--panel-light);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+        
+        [data-testid="stSidebar"] .stButton button:hover {
+            background-color: var(--accent-green);
+            color: #000;
+            border-color: var(--accent-green);
+        }
+        
+        /* Sidebar Inputs */
+        [data-testid="stSidebar"] .stSelectbox > div > div {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        [data-testid="stSidebar"] .stCheckbox span {
+            color: var(--text-secondary);
+        }
+        
+        /* Separator */
+        [data-testid="stSidebar"] hr {
+            border-color: rgba(255,255,255,0.1);
         }
     </style>
     """,
@@ -455,7 +341,7 @@ st.markdown(
 if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'auto_refresh' not in st.session_state:
-    st.session_state.auto_refresh = True  # Always enabled
+    st.session_state.auto_refresh = config.AUTO_REFRESH_ENABLED
 if 'last_refresh_counter' not in st.session_state:
     st.session_state.last_refresh_counter = -1
 
@@ -577,9 +463,44 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     send_discord_notification(message)
 
 
+def get_market_close_time(target_date: date) -> time:
+    """
+    Returns the market close time for a given date.
+    Handles early close days (1:00 PM ET) like Black Friday, Christmas Eve, etc.
+    
+    Args:
+        target_date: date object to check
+    
+    Returns:
+        time object (13:00 for early close, 16:00 for normal)
+    """
+    from datetime import time
+    
+    # Early close days (1:00 PM ET)
+    # Day after Thanksgiving (Black Friday) - Friday after 4th Thursday of November
+    if target_date.month == 11 and target_date.weekday() == 4 and 23 <= target_date.day <= 29:
+        return time(13, 0)
+    
+    # Day before Independence Day (July 3rd if weekday)
+    if target_date.month == 7 and target_date.day == 3 and target_date.weekday() < 5:
+        return time(13, 0)
+    
+    # Christmas Eve (Dec 24 if weekday)
+    if target_date.month == 12 and target_date.day == 24 and target_date.weekday() < 5:
+        return time(13, 0)
+    
+    # Normal close
+    return time(16, 0)
+
+
 def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
     """Return session label and whether regular trading is active."""
     et_time = current_time.astimezone(ZoneInfo("America/New_York"))
+    
+    # Check for weekend (5=Saturday, 6=Sunday)
+    if et_time.weekday() >= 5:
+        return {"label": "Weekend", "is_open": False}
+
     minutes = et_time.hour * 60 + et_time.minute
 
     def within(start_h, start_m, end_h, end_m):
@@ -632,97 +553,68 @@ def main():
         </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar controls
+    # Auto-refresh control in sidebar
     with st.sidebar:
-        st.markdown('<div class="sidebar-settings-section"><h3>Settings</h3>', unsafe_allow_html=True)
-
-        # Auto-refresh is always enabled
-        st.session_state.auto_refresh = True
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 Refresh Now", type="primary"):
-                # Clear cache and refresh
-                get_cached_daily_data.clear()
-                get_cached_intraday_data.clear()
-                st.rerun()
-
-        with col2:
-            if st.button("🧹 Clear Cache", type="secondary"):
-                # Clear Streamlit cache
-                st.cache_data.clear()
-                st.cache_resource.clear()
-
-                # Clear yfinance cache (platformdirs)
-                import shutil
-                import platformdirs
-                try:
-                    cache_dir = platformdirs.user_cache_dir("py-yfinance")
-                    if os.path.exists(cache_dir):
-                        shutil.rmtree(cache_dir)
-                        st.success(f"Cleared yfinance cache at {cache_dir}")
-                except Exception as e:
-                    st.error(f"Failed to clear yfinance cache: {e}")
-
-                st.rerun()
-
+        st.markdown("### ⚙️ Settings")
+        auto_refresh = st.checkbox(
+            "Auto-refresh (30s)", 
+            value=st.session_state.auto_refresh,
+            help="Automatically refresh data every 30 seconds"
+        )
+        st.session_state.auto_refresh = auto_refresh
+        
+        if st.button("🔄 Refresh Now"):
+            # Clear cache and refresh
+            get_cached_daily_data.clear()
+            get_cached_intraday_data.clear()
+            st.rerun()
+            
+        if st.button("🧹 Clear Cache & Reboot"):
+            # Clear Streamlit cache
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            
+            # Clear yfinance cache (platformdirs)
+            import shutil
+            import platformdirs
+            try:
+                cache_dir = platformdirs.user_cache_dir("py-yfinance")
+                if os.path.exists(cache_dir):
+                    shutil.rmtree(cache_dir)
+                    st.success(f"Cleared yfinance cache at {cache_dir}")
+            except Exception as e:
+                st.error(f"Failed to clear yfinance cache: {e}")
+                
+            st.rerun()
+        
         # Show last update time in user's local timezone
         if st.session_state.last_update:
             # Get local timezone name
             import time
             local_tz_name = time.tzname[time.daylight]  # e.g., "PST" or "PDT"
             update_time_str = st.session_state.last_update.strftime('%I:%M:%S %p')
-            st.markdown(f"""
-                <div class="sidebar-last-update">
-                    <div class="update-label">Last Updated</div>
-                    <div class="update-time">{update_time_str} {local_tz_name}</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Navigation section
-        st.markdown('<div class="sidebar-navigation">', unsafe_allow_html=True)
-        st.markdown('<h4>Navigation</h4>', unsafe_allow_html=True)
-
-        # Create navigation buttons (stacked vertically)
-        dashboard_btn = st.button("📊 Dashboard", key="nav_dashboard", help="View main dashboard")
-        journal_btn = st.button("📝 Journal", key="nav_journal", help="View trade journal")
-        backtest_btn = st.button("🔬 Backtest", key="nav_backtest", help="Run backtests")
-
-        # Set page based on button clicks
-        if dashboard_btn:
-            st.session_state.page = "Dashboard"
-        elif journal_btn:
-            st.session_state.page = "Trade Journal"
-        elif backtest_btn:
-            st.session_state.page = "Backtest"
-
-        # Default to Dashboard if no page set
-        if 'page' not in st.session_state:
-            st.session_state.page = "Dashboard"
-
-        page = st.session_state.page
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
+            st.caption(f"Last updated: {update_time_str} {local_tz_name}")
+        
+        
+        st.markdown("---")
+    
     refresh_counter = 0
     if st.session_state.auto_refresh:
         # Initialize last_refresh_counter if not exists
         if "last_refresh_counter" not in st.session_state:
             st.session_state.last_refresh_counter = -1
-
+        
         # st_autorefresh runs indefinitely as long as:
         # 1. Streamlit app is running
         # 2. Browser tab is open and active
         # 3. No network disconnections
         # It will continue every 30 seconds without timeout/expiration
         refresh_counter = st_autorefresh(
-            interval=config.AUTO_REFRESH_INTERVAL,
+            interval=config.AUTO_REFRESH_INTERVAL, 
             key="data_refresh",
             limit=None  # No limit - runs indefinitely
         )
-
+        
         last_counter = st.session_state.get("last_refresh_counter", -1)
         if refresh_counter > last_counter:
             # Force cache invalidation to ensure fresh data
@@ -731,6 +623,12 @@ def main():
             get_cached_iv_context.clear()
             st.session_state.last_refresh_counter = refresh_counter
             st.session_state.last_update = datetime.now()
+    
+    # Sidebar for navigation
+    page = st.sidebar.selectbox(
+        "Navigation",
+        ["Dashboard", "Trade Journal", "Backtest"]
+    )
     
     if page == "Dashboard":
         render_dashboard()
@@ -768,11 +666,11 @@ def render_dashboard():
             # Use cached functions
             daily_df = get_cached_daily_data(config.SYMBOL, config.DAILY_LOOKBACK_DAYS)
             
-            # Request last 2 days to ensure we get today's data if available
+            # Request last 5 days to ensure we get enough history (especially on Mondays)
             intraday_raw = get_cached_intraday_data(
                 config.SYMBOL,
                 config.INTRADAY_INTERVAL,
-                days=2
+                days=5
             )
             
             # Update last refresh time
@@ -802,16 +700,23 @@ def render_dashboard():
             # Market is OPEN only during regular trading hours (9:30 AM - 4:00 PM ET)
             current_time_only = current_time.time()
             market_open_time = time(9, 30)
-            market_close_time = time(16, 0)
             
-            if market_open_time <= current_time_only < market_close_time:
+            today = datetime.now(et_tz).date()
+            market_close_time = get_market_close_time(today)
+            
+            # Check for weekend (5=Saturday, 6=Sunday)
+            is_weekend = current_time.weekday() >= 5
+            
+            if is_weekend:
+                market_status = "CLOSED (Weekend)"
+                market_status_color = "#ff5f6d"
+            elif market_open_time <= current_time_only < market_close_time:
                 market_status = "OPEN"
                 market_status_color = "#2bd47d"
             else:
                 market_status = "CLOSED"
                 market_status_color = "#ff5f6d"
             
-            today = datetime.now(et_tz).date()
             intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
             
             # Filter to regular trading hours only (9:30 AM - 4:00 PM ET)
@@ -828,7 +733,7 @@ def render_dashboard():
                 
                 # Filter to regular trading hours (9:30 AM - 4:00 PM ET)
                 market_open_time = time(9, 30)
-                market_close_time = time(16, 0)
+                market_close_time = get_market_close_time(last_available_date)
                 
                 # Get time component of index
                 intraday_df['time_only'] = intraday_df.index.time
@@ -901,7 +806,7 @@ def render_dashboard():
                         intraday_df.index = intraday_df.index.tz_convert(et_tz)
                     
                     market_open_time = time(9, 30)
-                    market_close_time = time(16, 0)
+                    market_close_time = get_market_close_time(last_available_date)
                     intraday_df['time_only'] = intraday_df.index.time
                     intraday_df = intraday_df[
                         (intraday_df['time_only'] >= market_open_time) & 
@@ -909,23 +814,41 @@ def render_dashboard():
                     ].copy()
                     intraday_df = intraday_df.drop(columns=['time_only'], errors='ignore')
                 
-                st.info(f"No intraday data for today yet. Showing last available session ({last_available_date}).")
+                if is_weekend:
+                    st.info(f"Market Closed (Weekend). Showing last session ({last_available_date}).")
+                else:
+                    st.info(f"No intraday data for today yet. Showing last available session ({last_available_date}).")
                 if intraday_df.empty:
                     st.warning("No intraday data available.")
                     return
             
             today_data = get_today_data(daily_df, intraday_df)
-            
-            # Analyze regime
-            regime = analyze_regime(daily_df, today_data)
+
+            # Fetch IV context first (needed for regime analysis)
+            try:
+                iv_context = get_cached_iv_context(config.SYMBOL, intraday_df.iloc[0]['Open'])
+                vix_level = iv_context.get('vix_level')
+            except Exception:
+                iv_context = {}
+                vix_level = None
+
+            # Analyze regime (now with VIX level)
+            regime = analyze_regime(daily_df, today_data, vix_level=vix_level)
             
             # Calculate previous day's EMA values for continuity
             previous_ema_fast = None
             previous_ema_slow = None
             
-            # Get yesterday's data to calculate last EMA values
-            yesterday_date = today - timedelta(days=1)
-            yesterday_df = intraday_raw[intraday_raw.index.date == yesterday_date].copy()
+            # Get previous trading day's data (robust logic for Mondays)
+            # Find the last available date in intraday_raw that is strictly before today
+            available_dates = sorted(list(set(intraday_raw.index.date)))
+            past_dates = [d for d in available_dates if d < today]
+            
+            if past_dates:
+                last_trading_day = past_dates[-1]
+                yesterday_df = intraday_raw[intraday_raw.index.date == last_trading_day].copy()
+            else:
+                yesterday_df = pd.DataFrame()
             
             if not yesterday_df.empty:
                 # Filter yesterday's data to regular trading hours
@@ -939,7 +862,7 @@ def render_dashboard():
                     yesterday_df.index = yesterday_df.index.tz_convert(et_tz)
                 
                 market_open_time = time(9, 30)
-                market_close_time = time(16, 0)
+                market_close_time = get_market_close_time(last_trading_day)
                 yesterday_df['time_only'] = yesterday_df.index.time
                 yesterday_df = yesterday_df[
                     (yesterday_df['time_only'] >= market_open_time) & 
@@ -981,12 +904,6 @@ def render_dashboard():
 
             maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time, market_phase)
             
-            # Fetch IV context
-            try:
-                iv_context = get_cached_iv_context(config.SYMBOL, intraday_analysis['price'])
-            except Exception:
-                iv_context = {}
-            
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         import traceback
@@ -994,16 +911,19 @@ def render_dashboard():
         return
     
     # ========== TODAY'S REGIME HEADER ==========
-    st.markdown("""
-        <h2 style="
-            font-family: 'Inter', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 2rem 0 1rem 0;
-            padding: 0;
-            letter-spacing: -0.01em;
-        ">Today's Regime</h2>
+    # Format date for display (e.g., "Fri, Nov 28")
+    display_date = intraday_df.index[-1].strftime("%a, %b %d")
+    
+    st.markdown(f"""
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+            <h2 style="
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin: 0;
+                padding: 0;
+                letter-spacing: -0.01em;
+            ">Regime Analysis ({display_date})</h2>
+        </div>
     """, unsafe_allow_html=True)
     
     trend_color = "#2bd47d" if regime['trend'] == "Bullish" else "#ff5f6d" if regime['trend'] == "Bearish" else "#f7b500"
@@ -1290,9 +1210,14 @@ def render_dashboard():
     
     signal_cards = []
     signal_cards.append(build_info_card("Signal", "🎯", signal_body, direction_color))
-    signal_cards.append(build_info_card("Rationale Breakdown", "📋", rationale_body, "#8ea0bc"))
     
-    st.markdown(f"<div class='card-strip two-columns'>{''.join(signal_cards)}</div>", unsafe_allow_html=True)
+    # Only show rationale if there is an active signal
+    if signal.get('direction', 'NONE') != 'NONE':
+        signal_cards.append(build_info_card("Rationale Breakdown", "📋", rationale_body, "#8ea0bc"))
+        st.markdown(f"<div class='card-strip two-columns'>{''.join(signal_cards)}</div>", unsafe_allow_html=True)
+    else:
+        # Single column for just the signal card
+        st.markdown(f"<div class='card-strip' style='grid-template-columns: 1fr;'>{''.join(signal_cards)}</div>", unsafe_allow_html=True)
 
 
 def render_journal():

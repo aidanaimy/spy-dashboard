@@ -146,20 +146,29 @@ def classify_range(range_pct: float) -> str:
         return "Normal"
 
 
-def get_0dte_permission(trend: str, gap_pct: float, range_pct: float) -> Dict[str, str]:
+def get_0dte_permission(trend: str, gap_pct: float, range_pct: float, vix_level: float = None) -> Dict[str, str]:
     """
-    Determine 0DTE permission based on trend, gap, and range.
-    
+    Determine 0DTE permission based on trend, gap, range, and VIX level.
+
     Args:
         trend: Trend classification ('Bullish', 'Bearish', 'Mixed')
         gap_pct: Gap percentage (absolute value)
         range_pct: Range percentage
-        
+        vix_level: Current VIX level (optional)
+
     Returns:
         Dictionary with 'status' ('AVOID', 'CAUTION', 'FAVORABLE') and 'reason'
     """
     gap_abs = abs(gap_pct)
-    
+
+    # HARD DECK: AVOID if VIX <= 15 (too calm for options)
+    if vix_level is not None and vix_level <= 15:
+        return {
+            'status': 'AVOID',
+            'reason': 'VIX too low - avoid 0DTE options (insufficient volatility)',
+            'score': 0.0
+        }
+
     # AVOID: small gap + low range = likely chop
     if gap_abs < config.GAP_SMALL_THRESHOLD * 100 and range_pct < config.RANGE_LOW_THRESHOLD * 100:
         return {
@@ -184,7 +193,7 @@ def get_0dte_permission(trend: str, gap_pct: float, range_pct: float) -> Dict[st
     }
 
 
-def analyze_regime(daily_df: pd.DataFrame, today_data: Dict) -> Dict:
+def analyze_regime(daily_df: pd.DataFrame, today_data: Dict, vix_level: float = None) -> Dict:
     """
     Complete regime analysis combining all components.
     
@@ -217,7 +226,8 @@ def analyze_regime(daily_df: pd.DataFrame, today_data: Dict) -> Dict:
     permission = get_0dte_permission(
         trend_info['trend'],
         gap_info['gap_pct'],
-        range_info['range_pct']
+        range_info['range_pct'],
+        vix_level
     )
     
     return {

@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Try Alpaca first, fallback to yfinance
 DATA_SOURCE = "yfinance"
 try:
-    from data.alpaca_client import get_daily_data, get_intraday_data, get_alpaca_api
+    from data.alpaca_client import get_daily_data, get_intraday_data, get_daily_data_for_period, get_alpaca_api
     if get_alpaca_api() is not None:
         DATA_SOURCE = "alpaca"
         print("✅ Backtest Engine: Using Alpaca data source")
@@ -25,7 +25,7 @@ try:
         raise ImportError("Alpaca API not initialized")
 except (ImportError, AttributeError) as e:
     print(f"⚠️ Backtest Engine: Could not load Alpaca ({e}), falling back to yfinance")
-    from data.yfinance_client import get_daily_data, get_intraday_data
+    from data.yfinance_client import get_daily_data, get_intraday_data, get_daily_data_for_period
 
 from logic.regime import analyze_regime
 from logic.intraday import analyze_intraday
@@ -68,6 +68,36 @@ class BacktestEngine:
     def _calculate_options_pnl(self, entry_option_price: float, exit_option_price: float) -> float:
         """Calculate P/L for options trade."""
         return calculate_option_pnl(entry_option_price, exit_option_price, self.options_contracts)
+
+    def _apply_realistic_costs(self, base_price: float, is_entry: bool = True, direction: str = 'LONG') -> float:
+        """Apply slippage and commissions to get realistic trade price."""
+        # Add slippage
+        slippage_adjustment = base_price * config.BACKTEST_SLIPPAGE_PCT
+        if is_entry:
+            # On entry: pay worse price (slip against us)
+            if direction == 'LONG':
+                adjusted_price = base_price + slippage_adjustment  # Buy higher
+            else:
+                adjusted_price = base_price - slippage_adjustment  # Sell lower
+        else:
+            # On exit: get worse price (slip against us)
+            if direction == 'LONG':
+                adjusted_price = base_price - slippage_adjustment  # Sell lower
+            else:
+                adjusted_price = base_price + slippage_adjustment  # Buy higher (covering short)
+
+        return adjusted_price
+
+    def _calculate_commission_cost(self, num_contracts: int) -> float:
+        """Calculate total commission cost for a trade."""
+        return num_contracts * config.BACKTEST_COMMISSION_PER_CONTRACT
+
+    def _check_spread_filter(self, bid: float, ask: float) -> bool:
+        """Check if bid/ask spread is within acceptable limits."""
+        if bid <= 0 or ask <= 0:
+            return False
+        spread_pct = (ask - bid) / bid
+        return spread_pct <= config.BACKTEST_MAX_SPREAD_FILTER
         
     def run_backtest(self, start_date: datetime, end_date: datetime, use_options: bool = False, progress_callback=None) -> Dict:
         """
@@ -91,8 +121,13 @@ class BacktestEngine:
         # Calculate days needed: backtest period + buffer for weekends/holidays + MA periods
         backtest_days = (end_date - start_date).days
         # Need extra days for MA calculation (50-day MA needs 50 days before start)
-        required_days = max(backtest_days + config.MA_LONG + 50, 150)  # Backtest period + MA buffer, minimum 150 days
-        daily_df = get_daily_data(config.SYMBOL, days=required_days)
+        ma_buffer_days = config.MA_LONG + 50  # Buffer for MA calculations
+        total_days_needed = backtest_days + ma_buffer_days
+
+        # Fetch daily data from start_date - buffer to end_date
+        # This ensures we have historical data for the entire backtest period
+        daily_start_date = start_date - timedelta(days=ma_buffer_days)
+        daily_df = get_daily_data_for_period(config.SYMBOL, daily_start_date, end_date)
         
         # Get list of trading days
         trading_days = pd.bdate_range(start=start_date, end=end_date)
@@ -200,13 +235,10 @@ class BacktestEngine:
                     'today_close': intraday_df.iloc[-1]['Close']
                 }
                 
-                # Analyze regime using daily data up to this day
-                regime = analyze_regime(daily_df_up_to_day, today_data)
-                
                 # Process each bar in the day
                 intraday_df_sorted = intraday_df.sort_index()
-                
-                # Fetch VIX context for this day (once per day, reused for all bars)
+
+                # Fetch VIX context for this day FIRST (needed for regime analysis)
                 try:
                     # Use the first bar's timestamp as the day reference
                     first_bar_time = intraday_df_sorted.index[0]
@@ -216,11 +248,16 @@ class BacktestEngine:
                         day_datetime = first_bar_time
                     else:
                         day_datetime = pd.to_datetime(first_bar_time).to_pydatetime()
-                    
+
                     iv_context = fetch_historical_vix_context(day_datetime)
+                    vix_level = iv_context.get('vix_level')
                 except Exception:
                     # If VIX fetch fails, use empty context
                     iv_context = {}
+                    vix_level = None
+
+                # Analyze regime using daily data up to this day (now with VIX level)
+                regime = analyze_regime(daily_df_up_to_day, today_data, vix_level=vix_level)
                 
                 last_processed_time = None
                 bars_processed = 0
@@ -309,17 +346,33 @@ class BacktestEngine:
                                         exit_reason = 'EOD'
                                     
                                     if exit_reason:
-                                        pnl = self._calculate_options_pnl(entry_option_price, current_option_price)
+                                        # Apply realistic exit costs: slippage
+                                        theoretical_exit_price = current_option_price
+                                        if current_position['direction'] == 'LONG':
+                                            exit_option_price = self._apply_realistic_costs(theoretical_exit_price, is_entry=False, direction='LONG')
+                                        else:
+                                            exit_option_price = self._apply_realistic_costs(theoretical_exit_price, is_entry=False, direction='SHORT')
+
+                                        # Calculate P/L with realistic prices
+                                        pnl = self._calculate_options_pnl(entry_option_price, exit_option_price)
+
+                                        # Subtract commissions
+                                        commission_cost = self._calculate_commission_cost(self.options_contracts)
+                                        pnl -= commission_cost
+
                                         equity += pnl
                                         trades.append({
                                             'entry_time': current_position['entry_time'],
                                             'exit_time': idx,
                                             'direction': current_position['direction'],
-                                            'entry_price': entry_option_price,
-                                            'exit_price': current_option_price,
+                                            'entry_price': entry_option_price,  # Realistic entry price with slippage
+                                            'exit_price': exit_option_price,    # Realistic exit price with slippage
+                                            'theoretical_entry_price': current_position.get('theoretical_entry_price', entry_option_price),
+                                            'theoretical_exit_price': theoretical_exit_price,
                                             'entry_underlying': entry_underlying_price,
                                             'exit_underlying': current_price,
-                                            'pnl': pnl,
+                                            'pnl': pnl,  # Net P/L after commissions
+                                            'commissions': commission_cost,
                                             'exit_reason': exit_reason,
                                             'strike': strike,
                                             'confidence': current_position.get('signal_confidence', 'N/A'),
@@ -552,7 +605,7 @@ class BacktestEngine:
                                     if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
                                         strike = get_atm_strike(current_price)
                                         option_type = 'call'
-                                        
+
                                         # Get time to expiration
                                         if hasattr(idx, 'hour') and hasattr(idx, 'minute'):
                                             hours = idx.hour
@@ -561,23 +614,37 @@ class BacktestEngine:
                                             idx_dt = pd.to_datetime(idx)
                                             hours = idx_dt.hour
                                             minutes = idx_dt.minute
-                                        
+
                                         T = time_to_expiration_0dte(hours, minutes)
-                                        
+
                                         # Use VIX as proxy for IV (default to 20.0 if None or missing)
                                         vix_level = iv_context.get('vix_level') or 20.0
                                         sigma = vix_level / 100.0
-                                        
+
                                         # Calculate entry option price
-                                        entry_option_price = self._get_option_price(
+                                        theoretical_price = self._get_option_price(
                                             current_price, strike, T, sigma, option_type
                                         )
-                                        
+
+                                        # Apply realistic costs: slippage and simulate bid/ask spread
+                                        # For options, we assume a reasonable spread (wider for cheaper options)
+                                        spread_pct = max(0.02, min(0.10, theoretical_price * 0.5))  # 2-10% spread
+                                        bid_price = theoretical_price * (1 - spread_pct/2)
+                                        ask_price = theoretical_price * (1 + spread_pct/2)
+
+                                        # Check spread filter
+                                        if not self._check_spread_filter(bid_price, ask_price):
+                                            continue  # Skip trade if spread too wide
+
+                                        # Apply slippage to ask price (we pay the offer)
+                                        entry_option_price = self._apply_realistic_costs(ask_price, is_entry=True, direction='LONG')
+
                                         current_position = {
                                             'direction': 'LONG',
                                             'entry_price': entry_option_price,
                                             'entry_underlying_price': current_price,
                                             'entry_option_price': entry_option_price,
+                                            'theoretical_entry_price': theoretical_price,
                                             'entry_time': idx,
                                             'strike': strike,
                                             'entry_iv': sigma,
@@ -606,15 +673,28 @@ class BacktestEngine:
                                         sigma = vix_level / 100.0
                                         
                                         # Calculate entry option price
-                                        entry_option_price = self._get_option_price(
+                                        theoretical_price = self._get_option_price(
                                             current_price, strike, T, sigma, option_type
                                         )
-                                        
+
+                                        # Apply realistic costs: slippage and simulate bid/ask spread
+                                        spread_pct = max(0.02, min(0.10, theoretical_price * 0.5))  # 2-10% spread
+                                        bid_price = theoretical_price * (1 - spread_pct/2)
+                                        ask_price = theoretical_price * (1 + spread_pct/2)
+
+                                        # Check spread filter
+                                        if not self._check_spread_filter(bid_price, ask_price):
+                                            continue  # Skip trade if spread too wide
+
+                                        # Apply slippage to bid price (we sell to the bid when shorting)
+                                        entry_option_price = self._apply_realistic_costs(bid_price, is_entry=True, direction='SHORT')
+
                                         current_position = {
                                             'direction': 'SHORT',
                                             'entry_price': entry_option_price,
                                             'entry_underlying_price': current_price,
                                             'entry_option_price': entry_option_price,
+                                            'theoretical_entry_price': theoretical_price,
                                             'entry_time': idx,
                                             'strike': strike,
                                             'entry_iv': sigma,
@@ -800,7 +880,11 @@ class BacktestEngine:
                 'win_rate': 0.0,
                 'avg_r_multiple': 0.0,
                 'max_drawdown': 0.0,
-                'total_pnl': 0.0
+                'total_pnl': 0.0,
+                'avg_win': 0.0,
+                'avg_loss': 0.0,
+                'total_commissions': 0.0,
+                'time_analysis': {}
             }
         
         trades_df = pd.DataFrame(trades)
@@ -838,7 +922,8 @@ class BacktestEngine:
             max_drawdown = 0.0
         
         total_pnl = trades_df['pnl'].sum()
-        
+        total_commissions = trades_df.get('commissions', pd.Series()).sum()
+
         # Time-of-day performance analysis
         time_analysis = {}
         if 'entry_time' in trades_df.columns:
@@ -887,11 +972,11 @@ class BacktestEngine:
             'num_trades': len(trades_df),
             'win_rate': win_rate,
             'avg_r_multiple': avg_r_multiple,
-            'avg_r_multiple': avg_r_multiple,
             'max_drawdown': max_drawdown,
             'avg_win': avg_win,
             'avg_loss': avg_loss,
             'total_pnl': total_pnl,
+            'total_commissions': total_commissions,
             'time_analysis': time_analysis
         }
 
