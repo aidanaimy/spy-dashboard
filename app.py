@@ -26,6 +26,7 @@ try:
     from logic.intraday import analyze_intraday
     from logic.signals import generate_signal
     from logic.iv import fetch_iv_context
+    from logic.options import get_atm_strike
 except ImportError as e:
     st.error(f"Error importing logic modules: {e}")
     raise
@@ -445,12 +446,21 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     if confidence == "HIGH" and permission == "FAVORABLE":
         ping = "@everyone 🚨 "
 
+    # === Suggest Option Contract ===
+    contract_suggestion = ""
+    if price is not None and price > 0:
+        # Use shared logic for strike selection (Slightly ITM: Floor for Call, Ceil for Put)
+        option_type = "CALL" if direction == "CALL" else "PUT"
+        strike = int(get_atm_strike(price, option_type))
+        contract_suggestion = f"👉 **Suggest: SPY {strike}{option_type[0]} Exp: TODAY**"
+
     message = (
         f"{ping}**Signal Alert: {direction} ({confidence})**\n\n"
         f"**The Setup:**\n"
         f"Market is showing a **{direction}** bias. "
         f"Daily trend is **{trend}** and micro-trend is **{micro_trend}**. "
         f"Price ({price_str}) is trading **{vwap_status}** VWAP.\n\n"
+        f"{contract_suggestion}\n\n"
         f"**Context:**\n"
         f"• Confidence: {confidence}\n"
         f"• Session: {market_phase.get('label', 'Unknown')}\n"
@@ -1626,15 +1636,24 @@ def render_backtest():
                 summary_df['result'] = summary_df['pnl'].apply(lambda x: '✅ WIN' if x > 0 else '❌ LOSS')
                 
                 # Create display columns based on available data
+                # Create display columns based on available data
                 if has_metadata:
-                    display_cols = ['entry_time', 'exit_time', 'direction', 'confidence', '0dte_permission', 
-                                   'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                    col_names = ['Entry Time', 'Exit Time', 'Direction', 'Confidence', '0DTE', 
-                                'Entry', 'Exit', 'Exit', 'P/L', 'Result']
+                    # Check if strike is available (options mode)
+                    if 'strike' in summary_df.columns:
+                        summary_df['strike_display'] = summary_df['strike'].apply(lambda x: f"${x:.0f}" if pd.notnull(x) else "-")
+                        display_cols = ['entry_time', 'exit_time', 'direction', 'strike_display', 'confidence', '0dte_permission', 
+                                       'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
+                        col_names = ['Entry Time', 'Exit Time', 'Direction', 'Strike', 'Confidence', '0DTE', 
+                                    'Entry', 'Exit', 'Exit Reason', 'P/L', 'Result']
+                    else:
+                        display_cols = ['entry_time', 'exit_time', 'direction', 'confidence', '0dte_permission', 
+                                       'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
+                        col_names = ['Entry Time', 'Exit Time', 'Direction', 'Confidence', '0DTE', 
+                                    'Entry', 'Exit', 'Exit Reason', 'P/L', 'Result']
                 else:
                     # Old format without metadata
                     display_cols = ['entry_time', 'exit_time', 'direction', 'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                    col_names = ['Entry Time', 'Exit Time', 'Direction', 'Entry', 'Exit', 'Exit', 'P/L', 'Result']
+                    col_names = ['Entry Time', 'Exit Time', 'Direction', 'Entry', 'Exit', 'Exit Reason', 'P/L', 'Result']
                 
                 # Rename for display
                 display_df = summary_df[display_cols].copy()

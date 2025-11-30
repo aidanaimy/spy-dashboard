@@ -603,7 +603,7 @@ class BacktestEngine:
                                     # Options mode: Calculate option price at entry
                                     # Note: options_mode filter already ensures only HIGH confidence signals pass
                                     if signal['direction'] == 'CALL' and signal['confidence'] == 'HIGH':
-                                        strike = get_atm_strike(current_price)
+                                        strike = get_atm_strike(current_price, 'call')
                                         option_type = 'call'
 
                                         # Get time to expiration
@@ -654,7 +654,7 @@ class BacktestEngine:
                                         }
                                     if signal['direction'] == 'PUT' and signal['confidence'] == 'HIGH':
                                         # Options mode: Only enter on HIGH confidence (filtered by options_mode)
-                                        strike = get_atm_strike(current_price)
+                                        strike = get_atm_strike(current_price, 'put')
                                         option_type = 'put'
                                         
                                         # Get time to expiration

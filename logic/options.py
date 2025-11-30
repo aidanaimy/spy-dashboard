@@ -180,18 +180,24 @@ def calculate_all_greeks(S: float, K: float, T: float, r: float, sigma: float, o
     }
 
 
-def get_atm_strike(current_price: float, strike_spacing: float = 1.0) -> float:
+def get_atm_strike(current_price: float, option_type: str = 'call', strike_spacing: float = 1.0) -> float:
     """
-    Get at-the-money strike price (rounded to nearest strike).
+    Get at-the-money or slightly ITM strike price.
+    - Call: Floor (round down) -> Slightly ITM
+    - Put: Ceil (round up) -> Slightly ITM
     
     Args:
         current_price: Current stock price
+        option_type: 'call' or 'put'
         strike_spacing: Strike spacing (default 1.0 for SPY)
         
     Returns:
-        Nearest ATM strike
+        Selected strike price
     """
-    return round(current_price / strike_spacing) * strike_spacing
+    if option_type.lower() == 'call':
+        return math.floor(current_price / strike_spacing) * strike_spacing
+    else:
+        return math.ceil(current_price / strike_spacing) * strike_spacing
 
 
 def time_to_expiration_0dte(current_time_hour: float, current_time_minute: float = 0) -> float:
