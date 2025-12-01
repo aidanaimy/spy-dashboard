@@ -872,7 +872,7 @@ def render_dashboard():
                 
                 # Filter to regular trading hours (9:30 AM - 4:00 PM ET)
                 market_open_time = time(9, 30)
-                market_close_time = get_market_close_time(last_available_date)
+                market_close_time = get_market_close_time(today)
                 
                 # Get time component of index
                 intraday_df['time_only'] = intraday_df.index.time
