@@ -819,6 +819,15 @@ def render_dashboard():
             intraday_raw.index = pd.to_datetime(intraday_raw.index)
             et_tz = ZoneInfo("America/New_York")
             
+            # Check if we got any data at all
+            if intraday_raw.empty:
+                st.error("❌ No intraday data available from data source. This could mean:")
+                st.error("1. Alpaca API keys are not configured (check Streamlit secrets)")
+                st.error("2. Data source is experiencing issues")
+                st.error("3. No trading data available for the requested period")
+                st.info("💡 Try refreshing the page in a few minutes, or check your Alpaca API configuration.")
+                return
+            
             # Build status header with data source and market info
             try:
                 from data.alpaca_client import get_alpaca_api
