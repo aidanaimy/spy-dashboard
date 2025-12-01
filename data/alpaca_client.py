@@ -262,7 +262,10 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
             fetch_start = start_date
             fetch_end = end_date
         else:
-            fetch_end = datetime.now() if end_date is None else end_date
+            # Use timezone-aware datetime in ET to avoid timezone confusion
+            from zoneinfo import ZoneInfo
+            et_tz = ZoneInfo('America/New_York')
+            fetch_end = datetime.now(et_tz) if end_date is None else end_date
             fetch_start = fetch_end - timedelta(days=days + 1) if start_date is None else start_date
         
         # Fetch intraday bars - Alpaca expects RFC3339 format (YYYY-MM-DDTHH:MM:SSZ)
