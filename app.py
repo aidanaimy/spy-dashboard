@@ -537,14 +537,22 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
 
     if minutes < 9 * 60 + 45:
         return {"label": "Pre-Market", "is_open": False}
-    if within(9, 45, 11, 30):
+    if within(9, 45, 9, 55):
+        return {"label": "Opening Range", "is_open": True}  # YELLOW - 50% confidence
+    if within(9, 55, 10, 30):
         return {"label": "Morning Session", "is_open": True}  # GREEN - Full confidence
-    if within(11, 30, 13, 30):
-        return {"label": "Lunch Lull", "is_open": False}  # RED - BLOCKED
-    if within(13, 30, 14, 30):
+    if within(10, 30, 11, 45):
+        return {"label": "Morning Session", "is_open": True}  # GREEN - Full confidence
+    if within(11, 45, 13, 30):
+        return {"label": "Lunch (Blocked)", "is_open": False}  # RED - BLOCKED
+    if within(13, 30, 13, 45):
         return {"label": "Afternoon Session", "is_open": True}  # GREEN - Full confidence
-    if within(14, 30, 16, 0):
-        return {"label": "Closing Zone", "is_open": False}  # RED - BLOCKED
+    if within(13, 45, 14, 15):
+        return {"label": "Afternoon Session", "is_open": True}  # YELLOW - 70% confidence
+    if within(14, 15, 14, 30):
+        return {"label": "Power Hour", "is_open": True}  # GREEN - 120% confidence
+    if within(14, 30, 15, 30):
+        return {"label": "Close (Blocked)", "is_open": False}  # RED - BLOCKED
     return {"label": "After Hours", "is_open": False}
 
 
