@@ -463,18 +463,18 @@ class BacktestEngine:
                             et_time = pd.to_datetime(idx)
                         
                         minutes = et_time.hour * 60 + et_time.minute
-                        
-                        # Simplified 4-Phase Logic (Matching app.py)
-                        if minutes < 9 * 60 + 45:
+                        if minutes < 9 * 60 + 30:
                             market_phase = {"label": "Pre-Market", "is_open": False}
-                        elif minutes < 11 * 60 + 30:
-                            market_phase = {"label": "Morning Session", "is_open": True}
+                        elif minutes < 11 * 60:
+                            market_phase = {"label": "Open Drive", "is_open": True}
                         elif minutes < 13 * 60 + 30:
-                            market_phase = {"label": "Lunch Lull", "is_open": False}  # BLOCKED
+                            market_phase = {"label": "Midday", "is_open": True}
                         elif minutes < 14 * 60 + 30:
-                            market_phase = {"label": "Afternoon Session", "is_open": True}
+                            market_phase = {"label": "Afternoon Drift", "is_open": True}
+                        elif minutes < 15 * 60 + 30:
+                            market_phase = {"label": "Power Hour", "is_open": True}
                         else:
-                            market_phase = {"label": "Closing Zone", "is_open": False}  # BLOCKED
+                            market_phase = {"label": "After Hours", "is_open": False}
                         
                         # Generate signal (with time filtering, chop detection, and IV/VIX context)
                         signal = generate_signal(
