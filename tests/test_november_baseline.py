@@ -9,7 +9,7 @@ from datetime import datetime
 import pandas as pd
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backtest.backtest_engine import BacktestEngine
 import config
@@ -79,8 +79,8 @@ def run_november_backtest():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         csv_path = os.path.join(output_dir, f'november_2025_{timestamp}.csv')
         
-        if results['trades']:
-            trades_df = pd.DataFrame(results['trades'])
+        if not results['trades'].empty:
+            trades_df = results['trades']
             trades_df.to_csv(csv_path, index=False)
             print(f"💾 Results saved to: {csv_path}")
         
