@@ -790,13 +790,6 @@ def get_cached_intraday_data(symbol: str, interval: str, days: int = None, start
     else:
         result = get_intraday_data(symbol, interval, days=days if days is not None else 1)
     
-    # Debug logging
-    print(f"DEBUG: get_cached_intraday_data returned {len(result)} rows")
-    if not result.empty:
-        print(f"DEBUG: Date range: {result.index[0]} to {result.index[-1]}")
-    else:
-        print("DEBUG: Empty DataFrame returned from get_intraday_data")
-    
     return result
 
 
@@ -884,10 +877,6 @@ def render_dashboard():
             
             intraday_df = intraday_raw[intraday_raw.index.date == today].copy()
             
-            print(f"DEBUG: After filtering for today ({today}): {len(intraday_df)} rows")
-            if not intraday_df.empty:
-                print(f"DEBUG: Today's data range: {intraday_df.index[0]} to {intraday_df.index[-1]}")
-            
             # Filter to regular trading hours only (9:30 AM - 4:00 PM ET)
             # VWAP and EMAs should only use regular session data
             if not intraday_df.empty:
@@ -907,15 +896,11 @@ def render_dashboard():
                 # Get time component of index
                 intraday_df['time_only'] = intraday_df.index.time
                 
-                print(f"DEBUG: Before time filter: {len(intraday_df)} rows")
-                
                 # Filter to regular hours only
                 intraday_df = intraday_df[
                     (intraday_df['time_only'] >= market_open_time) & 
                     (intraday_df['time_only'] <= market_close_time)
                 ].copy()
-                
-                print(f"DEBUG: After time filter (9:30-16:00): {len(intraday_df)} rows")
                 
                 # Drop the temporary time column
                 intraday_df = intraday_df.drop(columns=['time_only'], errors='ignore')

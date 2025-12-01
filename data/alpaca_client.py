@@ -270,16 +270,25 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
         
         # Fetch intraday bars - Alpaca expects RFC3339 format (YYYY-MM-DDTHH:MM:SSZ)
         # For intraday, we need to include time, but format it properly
-        # Convert to UTC if needed
+        # Convert to UTC explicitly
+        from datetime import timezone
+        
         if fetch_start.tzinfo is None:
-            fetch_start_utc = fetch_start
-        else:
-            fetch_start_utc = fetch_start.astimezone(pd.Timestamp.now().tz)
+            # If naive, assume it's already UTC (or local, but we can't be sure)
+            # Best practice: make sure inputs are aware. If naive, assume ET as per our app logic?
+            # For safety, let's assume it's ET if naive, since we work in ET
+            from zoneinfo import ZoneInfo
+            et_tz = ZoneInfo('America/New_York')
+            fetch_start = fetch_start.replace(tzinfo=et_tz)
+            
+        fetch_start_utc = fetch_start.astimezone(timezone.utc)
         
         if fetch_end.tzinfo is None:
-            fetch_end_utc = fetch_end
-        else:
-            fetch_end_utc = fetch_end.astimezone(pd.Timestamp.now().tz)
+            from zoneinfo import ZoneInfo
+            et_tz = ZoneInfo('America/New_York')
+            fetch_end = fetch_end.replace(tzinfo=et_tz)
+            
+        fetch_end_utc = fetch_end.astimezone(timezone.utc)
         
         start_str = fetch_start_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
         end_str = fetch_end_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
