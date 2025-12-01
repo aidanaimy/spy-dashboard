@@ -322,6 +322,51 @@ def test_config_values():
 
 
 # ============================================================================
+# REGRESSION TESTS (GROUND TRUTH BASELINES)
+# ============================================================================
+
+def test_november_2025_baseline():
+    """Test November 2025 baseline matches ground truth (regression detection)."""
+    from backtest.backtest_engine import BacktestEngine
+    
+    # Ground truth values (from GROUND_TRUTH_BASELINES.md)
+    EXPECTED_TRADES = 18
+    EXPECTED_WIN_RATE = 0.556  # 55.6%
+    EXPECTED_PNL = 1669.22
+    
+    # Tolerances
+    TRADE_TOLERANCE = 0  # Exact match required
+    WIN_RATE_TOLERANCE = 0.01  # ±1%
+    PNL_TOLERANCE = 10  # ±$10
+    
+    # Run November 2025 backtest
+    engine = BacktestEngine(use_options=True)
+    start = datetime(2025, 11, 1)
+    end = datetime(2025, 11, 30)
+    
+    results = engine.run_backtest(start, end, use_options=True)
+    
+    # Validate trade count (exact match)
+    assert results['num_trades'] == EXPECTED_TRADES, \
+        f"Trade count mismatch: expected {EXPECTED_TRADES}, got {results['num_trades']}"
+    
+    # Validate win rate (within tolerance)
+    win_rate_diff = abs(results['win_rate'] - EXPECTED_WIN_RATE)
+    assert win_rate_diff <= WIN_RATE_TOLERANCE, \
+        f"Win rate mismatch: expected {EXPECTED_WIN_RATE:.1%}, got {results['win_rate']:.1%} (diff: {win_rate_diff:.1%})"
+    
+    # Validate P/L (within tolerance)
+    pnl_diff = abs(results['total_pnl'] - EXPECTED_PNL)
+    assert pnl_diff <= PNL_TOLERANCE, \
+        f"P/L mismatch: expected ${EXPECTED_PNL:.2f}, got ${results['total_pnl']:.2f} (diff: ${pnl_diff:.2f})"
+    
+    print(f"    ✓ Trades: {results['num_trades']} (expected {EXPECTED_TRADES})")
+    print(f"    ✓ Win Rate: {results['win_rate']:.1%} (expected {EXPECTED_WIN_RATE:.1%})")
+    print(f"    ✓ P/L: ${results['total_pnl']:.2f} (expected ${EXPECTED_PNL:.2f})")
+
+
+
+# ============================================================================
 # RUN ALL TESTS
 # ============================================================================
 
@@ -365,5 +410,10 @@ if __name__ == "__main__":
     print("\n⚙️  CONFIGURATION TESTS")
     print("-"*80)
     test("Config Values Sane", test_config_values)
+    
+    print("\n🎯 REGRESSION TESTS (GROUND TRUTH BASELINES)")
+    print("-"*80)
+    print("Running November 2025 baseline validation...")
+    test("November 2025 Baseline (18 trades, $1,669 P/L)", test_november_2025_baseline)
     
     print_summary()
