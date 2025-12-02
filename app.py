@@ -1163,12 +1163,14 @@ def render_dashboard():
             
             # Check if it's 4 PM ET and send EOD summary (once per day)
             if current_time.hour == 16 and current_time.minute < 5:  # 4:00-4:05 PM window
-                # Use session state to track if we've already sent today
                 today_str = current_time.date().isoformat()
-                if 'eod_sent_date' not in st.session_state or st.session_state.eod_sent_date != today_str:
+                tracker = get_tracker()
+                
+                # Check persistent tracker instead of session state to prevent duplicates across sessions
+                if not tracker.was_summary_sent(today_str):
                     try:
                         send_eod_summary()
-                        st.session_state.eod_sent_date = today_str
+                        tracker.mark_summary_sent(today_str)
                         st.success("📊 EOD Summary sent to Discord!")
                     except Exception as e:
                         st.warning(f"⚠️ Failed to send EOD summary: {e}")

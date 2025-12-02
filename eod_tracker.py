@@ -35,6 +35,7 @@ class EODTracker:
         """Create empty data structure for a new day."""
         return {
             "date": None,
+            "last_sent_date": None,
             "market_data": {
                 "open": None,
                 "high": None,
@@ -181,8 +182,20 @@ class EODTracker:
             "vix_data": self.data["vix_data"],
             "iv_data": self.data["iv_data"],
             "range_pct": self.data["range_pct"],
-            "dte_permission": self.data["dte_permission"]
+            "dte_permission": self.data["dte_permission"],
+            "last_sent_date": self.data.get("last_sent_date")
         }
+
+    def mark_summary_sent(self, date_str: str):
+        """Mark EOD summary as sent for the given date."""
+        self.data["last_sent_date"] = date_str
+        self._save_data()
+
+    def was_summary_sent(self, date_str: str) -> bool:
+        """Check if summary was already sent for the given date."""
+        # Reload data to ensure we see updates from other sessions/workers
+        self.data = self._load_data()
+        return self.data.get("last_sent_date") == date_str
 
 
 # Global tracker instance
