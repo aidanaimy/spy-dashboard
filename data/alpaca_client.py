@@ -342,19 +342,6 @@ def get_intraday_data(symbol: str = config.SYMBOL, interval: str = config.INTRAD
             # Convert UTC to ET (keep timezone-aware)
             bars.index = bars.index.tz_convert(et_tz)
         
-        # Filter to regular trading hours only (9:30 AM - 4:00 PM ET)
-        # This ensures backtests and live trading use the same data
-        if not bars.empty and bars.index.tz is not None:
-            from datetime import time
-            # Get time component of each bar
-            bar_times = bars.index.time
-            market_open = time(9, 30)
-            market_close = time(16, 0)  # Match dashboard's get_market_close_time()
-            
-            # Filter to regular hours
-            mask = (bar_times >= market_open) & (bar_times <= market_close)
-            bars = bars[mask].copy()
-        
         return bars
     
     except Exception as e:

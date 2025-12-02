@@ -330,9 +330,9 @@ def test_november_2025_baseline():
     from backtest.backtest_engine import BacktestEngine
     
     # Ground truth values (from GROUND_TRUTH_BASELINES.md)
-    EXPECTED_TRADES = 21
-    EXPECTED_WIN_RATE = 0.476  # 47.6%
-    EXPECTED_PNL = 679.54
+    EXPECTED_TRADES = 18
+    EXPECTED_WIN_RATE = 0.556  # 55.6%
+    EXPECTED_PNL = 1669.22
     
     # Tolerances
     TRADE_TOLERANCE = 0  # Exact match required
@@ -414,6 +414,6 @@ if __name__ == "__main__":
     print("\n🎯 REGRESSION TESTS (GROUND TRUTH BASELINES)")
     print("-"*80)
     print("Running November 2025 baseline validation...")
-    test("November 2025 Baseline (21 trades, $679.54 P/L)", test_november_2025_baseline)
+    test("November 2025 Baseline (18 trades, $1,669 P/L)", test_november_2025_baseline)
     
     print_summary()
