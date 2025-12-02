@@ -591,9 +591,9 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
     def within(start_h, start_m, end_h, end_m):
         return (start_h * 60 + start_m) <= minutes < (end_h * 60 + end_m)
 
-    if minutes < 9 * 60 + 45:
+    if minutes < 9 * 60 + 30:
         return {"label": "Pre-Market", "is_open": False}
-    if within(9, 45, 9, 55):
+    if within(9, 30, 9, 55):
         return {"label": "Early Open (Reduced)", "is_open": True}  # YELLOW - 50% confidence
     if within(9, 55, 10, 30):
         return {"label": "Morning Drive", "is_open": True}  # GREEN - Full confidence
@@ -607,7 +607,7 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
         return {"label": "Afternoon Wake-up (Reduced)", "is_open": True}  # YELLOW - 70% confidence
     if within(14, 15, 14, 30):
         return {"label": "Breakout Window (Boosted)", "is_open": True}  # GREEN - 120% confidence
-    if within(14, 30, 15, 30):
+    if within(14, 30, 16, 0):
         return {"label": "Late Day (Blocked)", "is_open": False}  # RED - BLOCKED
     return {"label": "After Hours", "is_open": False}
 
