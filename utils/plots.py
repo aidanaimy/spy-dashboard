@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Optional
 from zoneinfo import ZoneInfo
 from datetime import datetime, time
+import config  # Import config for session times
 
 
 def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None,
@@ -202,14 +203,26 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     
     
     
-    # Session markers (vertical lines)
+    # Session markers (vertical lines) - use config times
     if market_open and market_close and len(df_copy) > 0:
+        # Parse config times (format: "HH:MM")
+        def parse_time(time_str: str) -> time:
+            h, m = map(int, time_str.split(':'))
+            return time(h, m)
+        
         session_times = [
-            (datetime.combine(chart_date, time(9, 30)).replace(tzinfo=et_tz), 'Market Open', '#00ff00'),
-            (datetime.combine(chart_date, time(12, 0)).replace(tzinfo=et_tz), 'Lunch Start', '#ffaa00'),
-            (datetime.combine(chart_date, time(13, 0)).replace(tzinfo=et_tz), 'Lunch End', '#ffaa00'),
-            (datetime.combine(chart_date, time(14, 30)).replace(tzinfo=et_tz), 'Power Hour', '#00ff88'),
-            (datetime.combine(chart_date, time(15, 30)).replace(tzinfo=et_tz), 'Trading End', '#ff0000'),
+            (datetime.combine(chart_date, parse_time(config.SESSION_START)).replace(tzinfo=et_tz), 
+             'Market Open', '#00ff00'),
+            (datetime.combine(chart_date, parse_time(config.LUNCH_CHOP_START)).replace(tzinfo=et_tz), 
+             'Lunch Start', '#ffaa00'),
+            (datetime.combine(chart_date, parse_time(config.LUNCH_CHOP_END)).replace(tzinfo=et_tz), 
+             'Lunch End', '#ffaa00'),
+            (datetime.combine(chart_date, parse_time(config.POWER_HOUR_START)).replace(tzinfo=et_tz), 
+             'Power Hour', '#00ff88'),
+            (datetime.combine(chart_date, parse_time(config.BLOCK_TRADE_AFTER)).replace(tzinfo=et_tz), 
+             'Entry Block', '#ff6600'),
+            (datetime.combine(chart_date, parse_time(config.SESSION_END)).replace(tzinfo=et_tz), 
+             'Trading End', '#ff0000'),
         ]
         
         # Get price range for vertical line positioning
