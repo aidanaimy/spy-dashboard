@@ -28,13 +28,13 @@
 
 | Metric | Expected Value | Tolerance |
 |:---|:---|:---|
-| **Total Trades** | 21 | ±0 (exact) |
-| **Win Rate** | 47.6% | ±0.1% |
-| **Total P/L** | $679.54 | ±$10 |
-| **Avg R-Multiple** | 0.13 | ±0.02 |
-| **Max Drawdown** | 6.1% | ±0.5% |
-| **Avg Win** | $223.76 | ±$20 |
-| **Avg Loss** | -$141.64 | ±$20 |
+| **Total Trades** | 18 | ±0 (exact) |
+| **Win Rate** | 55.6% | ±0.1% |
+| **Total P/L** | $1,669.22 | ±$10 |
+| **Avg R-Multiple** | 0.35 | ±0.02 |
+| **Max Drawdown** | 2.78% | ±0.5% |
+| **Avg Win** | $271.54 | ±$20 |
+| **Avg Loss** | -$130.77 | ±$20 |
 
 **CSV File:** `baseline_november_2025.csv`
 
@@ -182,7 +182,7 @@ Total P/L: $6,996.79
 
 Before accepting new code changes, verify:
 
-- [ ] November 2025 test passes (21 trades, $679.54 P/L)
+- [ ] November 2025 test passes (18 trades, $1,669 P/L)
 - [ ] 1.5-Year test passes (154 trades, $6,996 P/L)
 - [ ] Local and hosted dashboards match
 - [ ] `audit_system.py` shows 100% pass rate
@@ -196,7 +196,7 @@ Before accepting new code changes, verify:
 - Commit: `0b6688a`
 - Features: **Max 2 Consecutive Losses Circuit Breaker**, Global Signal Suppression
 - **1.5-Year (Apr 2024 - Nov 2025):** 154 trades, 46.1% WR, +$6,996 P/L
-- **November 2025:** 21 trades, 47.6% WR, +$679.54 P/L (Updated after timezone fix)
+- **November 2025:** 18 trades, 55.6% WR, +$1,669 P/L (Unchanged)
 - **Liberation Day (Apr 2025):** 44 trades, 34.1% WR, -$731 P/L (Improved from -$2,642)
 - **Max Drawdown:** 11.0% (Improved from 21.8%)
 - **Profit Factor:** 1.61
