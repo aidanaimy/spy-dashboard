@@ -219,8 +219,6 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
              'Lunch End', '#ffaa00'),
             (datetime.combine(chart_date, parse_time(config.POWER_HOUR_START)).replace(tzinfo=et_tz), 
              'Power Hour', '#00ff88'),
-            (datetime.combine(chart_date, parse_time(config.BLOCK_TRADE_AFTER)).replace(tzinfo=et_tz), 
-             'Entry Block', '#ff6600'),
             (datetime.combine(chart_date, parse_time(config.SESSION_END)).replace(tzinfo=et_tz), 
              'Trading End', '#ff0000'),
         ]
