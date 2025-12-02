@@ -211,16 +211,19 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
             return time(h, m)
         
         session_times = [
-            (datetime.combine(chart_date, parse_time(config.SESSION_START)).replace(tzinfo=et_tz), 
+            # Market open/close are STATIC (actual market hours)
+            (datetime.combine(chart_date, time(9, 30)).replace(tzinfo=et_tz), 
              'Market Open', '#00ff00'),
+            # Trading session times from CONFIG
             (datetime.combine(chart_date, parse_time(config.LUNCH_CHOP_START)).replace(tzinfo=et_tz), 
              'Lunch Start', '#ffaa00'),
             (datetime.combine(chart_date, parse_time(config.LUNCH_CHOP_END)).replace(tzinfo=et_tz), 
              'Lunch End', '#ffaa00'),
             (datetime.combine(chart_date, parse_time(config.POWER_HOUR_START)).replace(tzinfo=et_tz), 
              'Power Hour', '#00ff88'),
-            (datetime.combine(chart_date, parse_time(config.SESSION_END)).replace(tzinfo=et_tz), 
-             'Trading End', '#ff0000'),
+            # Market close is STATIC (actual market close)
+            (datetime.combine(chart_date, time(16, 0)).replace(tzinfo=et_tz), 
+             'Market Close', '#ff0000'),
         ]
         
         # Get price range for vertical line positioning

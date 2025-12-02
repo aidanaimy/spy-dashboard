@@ -29,8 +29,8 @@ EMA_SLOW = 21
 VOLATILITY_LOOKBACK = 20  # bars for realized vol calculation
 
 # Trading session times (ET)
-SESSION_START = "09:30"
-SESSION_END = "16:00"
+SESSION_START = "09:45"
+SESSION_END = "15:30"
 
 # Time-of-day filters
 # Phase 1: Lunch Chop (11:45-13:30) - Reduced confidence or blocked
