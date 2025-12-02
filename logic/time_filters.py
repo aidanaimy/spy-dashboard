@@ -102,12 +102,35 @@ def get_time_filter(current_time: datetime) -> Dict[str, any]:
             'reason': 'Afternoon breakout window - boosted confidence'
         }
 
-    # Default: High Quality / Normal Trading
-    return {
-        'allow_trade': True,
-        'confidence_multiplier': 1.0,
-        'reason': 'High quality trading window'
-    }
+    # Default: Determine specific session based on time
+    # 9:55 - 10:30: Morning Drive
+    # 10:30 - 11:45: Mid-Morning Trend
+    # 13:30 - 13:45: Early Afternoon
+    if '09:55' <= time_str < '10:30':
+        return {
+            'allow_trade': True,
+            'confidence_multiplier': 1.0,
+            'reason': 'Morning Drive (strong directional movement)'
+        }
+    elif '10:30' <= time_str < '11:45':
+        return {
+            'allow_trade': True,
+            'confidence_multiplier': 1.0,
+            'reason': 'Mid-Morning Trend (sustained moves)'
+        }
+    elif '13:30' <= time_str < '13:45':
+        return {
+            'allow_trade': True,
+            'confidence_multiplier': 1.0,
+            'reason': 'Early Afternoon (post-lunch resumption)'
+        }
+    else:
+        # Fallback for any other valid trading time
+        return {
+            'allow_trade': True,
+            'confidence_multiplier': 1.0,
+            'reason': 'Standard trading window'
+        }
 
 
 def apply_time_filter(signal: Dict, current_time: datetime) -> Dict:

@@ -36,6 +36,8 @@ from utils.journal import (
 )
 # Add a comment to trigger redeploy.
 from backtest.backtest_engine import BacktestEngine
+from eod_tracker import get_tracker
+from eod_summary import send_eod_summary, should_send_eod_summary
 import config
 
 # Page config
@@ -384,13 +386,23 @@ def get_discord_webhook_url() -> str:
     return os.getenv("DISCORD_WEBHOOK_URL", "")
 
 
-def send_discord_notification(message: str) -> None:
-    """Post a message to Discord if webhook is configured."""
+def send_discord_notification(message: str = None, embed: Dict = None) -> None:
+    """Post a message to Discord if webhook is configured.
+    
+    Args:
+        message: Plain text message (for @everyone pings)
+        embed: Discord embed object for rich formatting
+    """
     url = get_discord_webhook_url()
     if not url:
         return
     try:
-        requests.post(url, json={"content": message}, timeout=5)
+        payload = {}
+        if message:
+            payload["content"] = message
+        if embed:
+            payload["embeds"] = [embed]
+        requests.post(url, json=payload, timeout=5)
     except Exception as exc:
         print(f"Discord notification failed: {exc}")
 
@@ -445,51 +457,95 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
         except Exception:
             pass
 
-    # === Build Discord message ===
+    # === Build Discord Embed ===
     timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S ET")
     reason = signal.get("reason", "")
     price = intraday.get("price", 0)
     vwap = intraday.get("vwap", 0)
     micro_trend = intraday.get("micro_trend", "Neutral")
     iv_summary = iv_context.get("atm_iv")
+    vix_level = iv_context.get("vix_level")
     trend = regime.get("trend", "Neutral")
 
     price_str = f"${price:.2f}" if price is not None else "n/a"
     iv_str = f"{iv_summary:.2f}%" if iv_summary is not None else "n/a"
+    vix_str = f"{vix_level:.2f}" if vix_level is not None else "n/a"
     vwap_status = "above" if price > vwap else "below"
     
-    # === Determine ping level ===
-    # HIGH confidence + FAVORABLE = @everyone ping
-    # MEDIUM confidence or CAUTION = no ping
-    ping = ""
-    if confidence == "HIGH" and permission == "FAVORABLE":
-        ping = "@everyone 🚨 "
-
-    # === Suggest Option Contract ===
+    # === Determine actionability ===
+    is_actionable = confidence == "HIGH" and permission == "FAVORABLE"
+    
+    # === Color coding (Discord embed colors are hex integers) ===
+    if is_actionable:
+        if direction == "CALL":
+            color = 0x00ff88  # Bright green for actionable CALL
+        else:
+            color = 0xff5555  # Bright red for actionable PUT
+    else:
+        # Non-actionable signals (awareness only)
+        if direction == "CALL":
+            color = 0xffaa00  # Yellow/amber for CAUTION CALL
+        else:
+            color = 0xff9966  # Orange for CAUTION PUT
+    
+    # === Actionability badge ===
+    if is_actionable:
+        actionability_badge = "🎯 **ACTIONABLE SIGNAL**"
+        ping_message = "@everyone 🚨 **HIGH + FAVORABLE SIGNAL DETECTED**"
+    else:
+        actionability_badge = "ℹ️ **AWARENESS ONLY** (Wait for HIGH + FAVORABLE)"
+        ping_message = None  # No @everyone ping
+    
+    # === Option contract suggestion ===
     contract_suggestion = ""
+    
     if price is not None and price > 0:
-        # Use shared logic for strike selection (Slightly ITM: Floor for Call, Ceil for Put)
+        from logic.options import get_atm_strike
         option_type = "CALL" if direction == "CALL" else "PUT"
         strike = int(get_atm_strike(price, option_type))
-        contract_suggestion = f"👉 **Suggest: SPY {strike}{option_type[0]} Exp: TODAY**"
-
-    message = (
-        f"{ping}**Signal Alert: {direction} ({confidence})**\n\n"
-        f"**The Setup:**\n"
-        f"Market is showing a **{direction}** bias. "
-        f"Daily trend is **{trend}** and micro-trend is **{micro_trend}**. "
-        f"Price ({price_str}) is trading **{vwap_status}** VWAP.\n\n"
-        f"{contract_suggestion}\n\n"
-        f"**Context:**\n"
-        f"• Confidence: {confidence}\n"
-        f"• Session: {market_phase.get('label', 'Unknown')}\n"
-        f"• 0DTE Status: {permission}\n"
-        f"• Volatility: {iv_str} IV\n\n"
-        f"**Reason:** {reason}\n"
-        f"_{timestamp}_"
-    )
-
-    send_discord_notification(message)
+        contract_suggestion = f"SPY {strike}{option_type[0]} (0DTE)"
+    
+    # === Build embed object ===
+    embed = {
+        "title": f"{direction} Signal ({confidence})",
+        "description": f"{actionability_badge}\n\n**The Setup:**\nMarket showing **{direction}** bias. Daily trend is **{trend}** and micro-trend is **{micro_trend}**. Price ({price_str}) trading **{vwap_status}** VWAP.",
+        "color": color,
+        "fields": [
+            {
+                "name": "📋 Signal Details",
+                "value": f"**Direction:** {direction}\n**Confidence:** {confidence}\n**0DTE Status:** {permission}\n**Session:** {market_phase.get('label', 'Unknown')}",
+                "inline": True
+            },
+            {
+                "name": "📊 Market Context",
+                "value": f"**ATM IV:** {iv_str}\n**VIX:** {vix_str}\n**Price:** {price_str}\n**VWAP:** ${vwap:.2f}",
+                "inline": True
+            }
+        ],
+        "footer": {
+            "text": timestamp
+        }
+    }
+    
+    # Add contract suggestion field
+    if contract_suggestion:
+        contract_field = {
+            "name": "👉 Suggested Contract",
+            "value": f"**{contract_suggestion}**",
+            "inline": False
+        }
+        embed["fields"].append(contract_field)
+    
+    # Add rationale field
+    rationale_field = {
+        "name": "💡 Rationale",
+        "value": reason[:1024] if len(reason) <= 1024 else reason[:1021] + "...",  # Discord field limit
+        "inline": False
+    }
+    embed["fields"].append(rationale_field)
+    
+    # Send to Discord
+    send_discord_notification(message=ping_message, embed=embed)
 
 
 def get_market_close_time(target_date: date) -> time:
@@ -993,6 +1049,36 @@ def render_dashboard():
             # Analyze regime (now with VIX level)
             regime = analyze_regime(daily_df, today_data, vix_level=vix_level)
             
+            # Update EOD tracker with market data
+            current_time = datetime.now(ZoneInfo("America/New_York"))
+            tracker = get_tracker()
+            tracker.reset_if_new_day(current_time.date().isoformat())
+            
+            # Update market OHLCV
+            tracker.update_market_data(
+                open_price=today_data['today_open'],
+                high=today_data['today_high'],
+                low=today_data['today_low'],
+                close=today_data['today_close'],
+                volume=int(intraday_df['Volume'].sum()) if 'Volume' in intraday_df.columns else 0
+            )
+            
+            # Update VIX data
+            if vix_level:
+                tracker.update_vix_data(vix_close=vix_level)
+            
+            # Update IV range
+            if iv_context.get('atm_iv'):
+                tracker.update_iv_range(iv_context['atm_iv'])
+            
+            # Update range percentage
+            if today_data['today_open'] > 0:
+                range_pct = ((today_data['today_high'] - today_data['today_low']) / today_data['today_open']) * 100
+                tracker.update_range_pct(range_pct)
+            
+            # Update 0DTE permission
+            tracker.update_dte_permission(regime.get('0dte_status', 'UNKNOWN'))
+            
             # Calculate previous day's EMA values for continuity
             previous_ema_fast = None
             previous_ema_slow = None
@@ -1061,6 +1147,31 @@ def render_dashboard():
             )
 
             maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time, market_phase)
+            
+            # Track signal for EOD summary (only if signal was generated)
+            if signal.get('direction') != 'NONE':
+                tracker = get_tracker()
+                tracker.reset_if_new_day(current_time.date().isoformat())
+                tracker.log_signal(
+                    time=current_time.strftime("%H:%M"),
+                    direction=signal.get('direction', 'NONE'),
+                    confidence=signal.get('confidence', 'LOW'),
+                    permission=regime.get('0dte_status', 'UNKNOWN'),
+                    session=market_phase.get('label', 'Unknown'),
+                    reason=signal.get('reason', '')
+                )
+            
+            # Check if it's 4 PM ET and send EOD summary (once per day)
+            if current_time.hour == 16 and current_time.minute < 5:  # 4:00-4:05 PM window
+                # Use session state to track if we've already sent today
+                today_str = current_time.date().isoformat()
+                if 'eod_sent_date' not in st.session_state or st.session_state.eod_sent_date != today_str:
+                    try:
+                        send_eod_summary()
+                        st.session_state.eod_sent_date = today_str
+                        st.success("📊 EOD Summary sent to Discord!")
+                    except Exception as e:
+                        st.warning(f"⚠️ Failed to send EOD summary: {e}")
             
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
