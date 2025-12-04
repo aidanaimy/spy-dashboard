@@ -35,7 +35,7 @@ from logic.options import (
     black_scholes_price, calculate_delta, calculate_all_greeks,
     get_atm_strike, time_to_expiration_0dte, calculate_option_pnl
 )
-import config
+import core.config as config
 
 
 class BacktestEngine:
@@ -230,17 +230,12 @@ class BacktestEngine:
                 else:
                     yesterday_close = intraday_df.iloc[0]['Open']
                 
-                # Get today's data
-                today_data = {
-                    'yesterday_close': yesterday_close,
-                    'today_open': intraday_df.iloc[0]['Open'],
-                    'today_high': intraday_df['High'].max(),
-                    'today_low': intraday_df['Low'].min(),
-                    'today_close': intraday_df.iloc[-1]['Close']
-                }
-                
                 # Process each bar in the day
                 intraday_df_sorted = intraday_df.sort_index()
+
+                # Initialize running high/low for the day
+                running_high = -float('inf')
+                running_low = float('inf')
 
                 # Fetch VIX context for this day FIRST (needed for regime analysis)
                 try:
@@ -259,9 +254,8 @@ class BacktestEngine:
                     # If VIX fetch fails, use empty context
                     iv_context = {}
                     vix_level = None
-
-                # Analyze regime using daily data up to this day (now with VIX level)
-                regime = analyze_regime(daily_df_up_to_day, today_data, vix_level=vix_level)
+                
+                # We will analyze regime dynamically inside the loop
                 
                 last_processed_time = None
                 bars_processed = 0
@@ -301,6 +295,28 @@ class BacktestEngine:
                         bars_processed += 1
                         
                         current_price = row['Close']
+                        current_high = row['High']
+                        current_low = row['Low']
+                        
+                        # Update running high/low
+                        if running_high == -float('inf'):
+                            running_high = current_high
+                            running_low = current_low
+                        else:
+                            running_high = max(running_high, current_high)
+                            running_low = min(running_low, current_low)
+                            
+                        # Construct current data for regime analysis
+                        current_data = {
+                            'yesterday_close': yesterday_close,
+                            'today_open': intraday_df.iloc[0]['Open'],
+                            'today_high': running_high,
+                            'today_low': running_low,
+                            'today_close': current_price
+                        }
+                        
+                        # Analyze regime dynamically with current data
+                        regime = analyze_regime(daily_df_up_to_day, current_data, vix_level=vix_level)
                         
                         # Debug: Show bar data at 14:55 to verify we're using correct bar
                         if self.use_options and time_str == "14:55":
@@ -945,7 +961,7 @@ class BacktestEngine:
         # Calculate metrics
         if not trades:
             return {
-                'trades': [],
+                'trades': pd.DataFrame(),
                 'equity_curve': pd.DataFrame(),
                 'num_trades': 0,
                 'win_rate': 0.0,

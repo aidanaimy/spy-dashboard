@@ -36,9 +36,9 @@ from utils.journal import (
 )
 # Add a comment to trigger redeploy.
 from backtest.backtest_engine import BacktestEngine
-from eod_tracker import get_tracker
-from eod_summary import send_eod_summary, should_send_eod_summary
-import config
+from logic.eod_tracker import get_tracker
+from logic.eod_summary import send_eod_summary, should_send_eod_summary
+import core.config as config
 
 # Page config
 st.set_page_config(
@@ -408,39 +408,59 @@ def send_discord_notification(message: str = None, embed: Dict = None) -> None:
 
 
 @st.cache_resource
-def get_signal_cache() -> Dict[str, Optional[str]]:
-    return {"snapshot": None}
+def get_signal_cache() -> Dict[str, Dict]:
+    """Cache for tracking last sent signals with timestamps."""
+    return {}
 
 
 def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
                         iv_context: Dict, current_time: datetime,
-                        market_phase: Dict) -> None:
+                        market_phase: Dict, ticker: str = "SPY") -> None:
     """Send Discord alert when signal direction/confidence changes."""
     direction = signal.get("direction", "NONE")
     confidence = signal.get("confidence", "LOW")
     permission = regime.get("0dte_status")
     is_open = market_phase.get("is_open", False)
     
-    snapshot = f"{direction}:{confidence}"
+    # Include ticker in snapshot to track signals per ticker
+    snapshot = f"{ticker}:{direction}:{confidence}"
 
     cache = get_signal_cache()
-    last_snapshot = cache.get("snapshot")
+    
+    # Check if we've sent this exact signal before
+    ticker_cache = cache.get(ticker, {})
+    last_snapshot = ticker_cache.get("snapshot")
+    last_timestamp = ticker_cache.get("timestamp")
+    
+    # Deduplication: Skip if same signal
     if snapshot == last_snapshot:
         return
+    
+    # Time-based cooldown: Skip if less than 15 minutes since last notification
+    if last_timestamp:
+        time_since_last = (current_time - last_timestamp).total_seconds() / 60
+        if time_since_last < 15:
+            return  # Cooldown active, skip notification
+    
+    # Update cache with new snapshot (will be finalized after filters pass)
+    # Note: We update here to prevent rapid checks, but only send if filters pass
 
-    cache["snapshot"] = snapshot
-
-    # === FILTER: Only send Discord for actionable signals ===
-    # Skip if:
-    # 1. LOW confidence (not actionable)
-    # 2. 0DTE Permission is AVOID (don't trade)
-    # 3. Market phase doesn't allow trading (blocked period)
-    if confidence == "LOW":
-        return
+    # === FILTER: Only send Discord for HIGH quality signals ===
+    # Multi-ticker expansion: Only post premium setups to avoid spam
+    # Requirements:
+    # 1. HIGH confidence (best setups only)
+    # 2. FAVORABLE permission (volatile, trending days)
+    # 3. Market is open (not blocked period)
+    
+    if confidence != "HIGH":
+        return  # Skip MEDIUM and LOW confidence
+    
+    # Allow FAVORABLE and CAUTION (for Awareness), skip AVOID
     if permission == "AVOID":
         return
+        
     if not is_open:
-        return
+        return  # Skip blocked trading periods
     
     # 4. Circuit breaker is active (global file-based check)
     circuit_breaker_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "circuit_breaker_status.json")
@@ -473,7 +493,9 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     vwap_status = "above" if price > vwap else "below"
     
     # === Determine actionability ===
-    is_actionable = confidence == "HIGH" and permission == "FAVORABLE"
+    # HIGH + FAVORABLE = Actionable
+    # HIGH + CAUTION = Awareness Only
+    is_actionable = (confidence == "HIGH" and permission == "FAVORABLE")
     
     # === Color coding (Discord embed colors are hex integers) ===
     if is_actionable:
@@ -492,9 +514,12 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     if is_actionable:
         actionability_badge = "🎯 **ACTIONABLE SIGNAL**"
         ping_message = "@everyone 🚨 **HIGH + FAVORABLE SIGNAL DETECTED**"
-    else:
-        actionability_badge = "ℹ️ **AWARENESS ONLY** (Wait for HIGH + FAVORABLE)"
+    elif permission == "CAUTION":
+        actionability_badge = "⚠️ **AWARENESS ONLY** (High Quality but Caution Day)"
         ping_message = None  # No @everyone ping
+    else:
+        actionability_badge = "ℹ️ **AWARENESS ONLY**"
+        ping_message = None
     
     # === Option contract suggestion ===
     contract_suggestion = ""
@@ -503,17 +528,17 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
         from logic.options import get_atm_strike
         option_type = "CALL" if direction == "CALL" else "PUT"
         strike = int(get_atm_strike(price, option_type))
-        contract_suggestion = f"SPY {strike}{option_type[0]} (0DTE)"
+        contract_suggestion = f"{ticker} {strike}{option_type[0]} (0DTE)"
     
     # === Build embed object ===
     embed = {
-        "title": f"{direction} Signal ({confidence})",
+        "title": f"{ticker} {direction} Signal ({confidence})",
         "description": f"{actionability_badge}\n\n**The Setup:**\nMarket showing **{direction}** bias. Daily trend is **{trend}** and micro-trend is **{micro_trend}**. Price ({price_str}) trading **{vwap_status}** VWAP.",
         "color": color,
         "fields": [
             {
                 "name": "📋 Signal Details",
-                "value": f"**Direction:** {direction}\n**Confidence:** {confidence}\n**0DTE Status:** {permission}\n**Session:** {market_phase.get('label', 'Unknown')}",
+                "value": f"**Ticker:** {ticker}\n**Direction:** {direction}\n**Confidence:** {confidence}\n**0DTE Status:** {permission}\n**Session:** {market_phase.get('label', 'Unknown')}",
                 "inline": True
             },
             {
@@ -546,6 +571,99 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     
     # Send to Discord
     send_discord_notification(message=ping_message, embed=embed)
+    
+    # Update cache with timestamp after successful send
+    cache[ticker] = {
+        "snapshot": snapshot,
+        "timestamp": current_time
+    }
+
+
+@st.cache_resource
+def get_eod_status() -> Dict[str, bool]:
+    """Track if EOD report has been sent for today."""
+    return {"sent": False, "date": None}
+
+
+def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> None:
+    """
+    Check if it's time to send EOD summary and send it if not already sent.
+    Aggregates performance for SPY and IWM.
+    """
+    # 1. Check time (e.g., after 4:05 PM ET)
+    market_close = current_time.replace(hour=16, minute=5, second=0, microsecond=0)
+    if not force and current_time < market_close:
+        return
+
+    # 2. Check if already sent today
+    status = get_eod_status()
+    today = current_time.date()
+    
+    if status["sent"] and status["date"] == today:
+        return
+        
+    # 3. Generate Report
+    print("📝 Generating EOD Summary Report...")
+    
+    tickers = ["SPY", "IWM"]
+    fields = []
+    
+    for ticker in tickers:
+        try:
+            # Fetch data
+            daily_df = get_cached_daily_data(ticker, config.DAILY_LOOKBACK_DAYS)
+            intraday_df = get_cached_intraday_data(
+                ticker, 
+                config.INTRADAY_INTERVAL, 
+                start_date=current_time.replace(hour=9, minute=30),
+                end_date=current_time
+            )
+            
+            if daily_df.empty or intraday_df.empty:
+                continue
+                
+            # Calculate stats
+            close_price = intraday_df['Close'].iloc[-1]
+            open_price = intraday_df['Open'].iloc[0]
+            pct_change = ((close_price - open_price) / open_price) * 100
+            
+            # Determine trend
+            from logic.regime import calculate_moving_averages, get_trend
+            mas = calculate_moving_averages(daily_df)
+            trend_info = get_trend(close_price, mas['ma_short'], mas['ma_long'])
+            trend = trend_info.get('trend', 'Neutral')
+            
+            # Format field
+            emoji = "🟢" if pct_change > 0 else "🔴" if pct_change < 0 else "⚪"
+            
+            fields.append({
+                "name": f"{ticker} Performance",
+                "value": f"**Close:** ${close_price:.2f}\n**Change:** {emoji} {pct_change:+.2f}%\n**Trend:** {trend}",
+                "inline": True
+            })
+            
+        except Exception as e:
+            print(f"Error generating EOD stats for {ticker}: {e}")
+            
+    if not fields:
+        return
+
+    # 4. Build Embed
+    embed = {
+        "title": f"🏁 End of Day Summary - {today.strftime('%Y-%m-%d')}",
+        "description": "Daily performance wrap-up for tracked tickers.",
+        "color": 0x2b2d31,  # Dark grey
+        "fields": fields,
+        "footer": {
+            "text": "TradeV3.5 Automated Report"
+        }
+    }
+    
+    # 5. Send and Update Status
+    send_discord_notification(embed=embed)
+    status["sent"] = True
+    status["date"] = today
+    print("✅ EOD Summary sent!")
 
 
 def get_market_close_time(target_date: date) -> time:
@@ -591,31 +709,62 @@ def get_market_phase(current_time: datetime) -> Dict[str, Optional[str]]:
     def within(start_h, start_m, end_h, end_m):
         return (start_h * 60 + start_m) <= minutes < (end_h * 60 + end_m)
 
-    if minutes < 9 * 60 + 30:
+    # Parse config times
+    def parse_time(t_str):
+        h, m = map(int, t_str.split(':'))
+        return h * 60 + m
+
+    session_start = parse_time(config.SESSION_START)
+    lunch_start = parse_time(config.LUNCH_CHOP_START)
+    lunch_end = parse_time(config.LUNCH_CHOP_END)
+    wakeup_start = parse_time(config.AFTERNOON_WAKEUP_START)
+    wakeup_end = parse_time(config.AFTERNOON_WAKEUP_END)
+    power_start = parse_time(config.POWER_HOUR_START)
+    block_after = parse_time(config.BLOCK_TRADE_AFTER)
+    session_end = parse_time(config.SESSION_END)
+
+    if minutes < session_start:
         return {"label": "Pre-Market", "is_open": False}
-    if within(9, 30, 9, 55):
-        return {"label": "Early Open (Reduced)", "is_open": True}  # YELLOW - 50% confidence
-    if within(9, 55, 10, 30):
-        return {"label": "Morning Drive", "is_open": True}  # GREEN - Full confidence
-    if within(10, 30, 11, 45):
-        return {"label": "Mid-Morning Trend", "is_open": True}  # GREEN - Full confidence
-    if within(11, 45, 13, 30):
-        return {"label": "Lunch Chop", "is_open": False}  # RED - BLOCKED
-    if within(13, 30, 13, 45):
-        return {"label": "Early Afternoon", "is_open": True}  # GREEN - Full confidence
-    if within(13, 45, 14, 15):
-        return {"label": "Afternoon Wake-up (Reduced)", "is_open": True}  # YELLOW - 70% confidence
-    if within(14, 15, 14, 30):
-        return {"label": "Breakout Window (Boosted)", "is_open": True}  # GREEN - 120% confidence
-    if within(14, 30, 16, 0):
-        return {"label": "Late Day (Blocked)", "is_open": False}  # RED - BLOCKED
+    
+    # Early Open (First 10 mins)
+    if minutes < session_start + 10:
+        return {"label": "Early Open (Reduced)", "is_open": True}
+        
+    # Morning Drive
+    if minutes < 10 * 60 + 30: # 10:30
+        return {"label": "Morning Drive", "is_open": True}
+        
+    # Mid-Morning
+    if minutes < lunch_start:
+        return {"label": "Mid-Morning Trend", "is_open": True}
+        
+    # Lunch Chop
+    if minutes < lunch_end:
+        return {"label": "Lunch Chop", "is_open": False}
+        
+    # Early Afternoon
+    if minutes < wakeup_start:
+        return {"label": "Early Afternoon", "is_open": True}
+        
+    # Afternoon Wake-up
+    if minutes < wakeup_end:
+        return {"label": "Afternoon Wake-up (Reduced)", "is_open": True}
+        
+    # Power Hour / Breakout
+    if minutes < block_after:
+        return {"label": "Breakout Window (Boosted)", "is_open": True}
+        
+    # Late Day (Blocked but Open)
+    if minutes < session_end:
+        return {"label": "Late Day (Blocked)", "is_open": False}
+        
     return {"label": "After Hours", "is_open": False}
 
 
 def main():
-    # Modern title header
+    # Ticker selector at the top
     st.markdown("""
-        <div style="padding: 0; margin: 0 0 0.5rem 0;">
+        <div style="padding: 0; margin: 0 0 1rem 0;">
             <h1 style="
                 font-size: 2.5rem;
                 font-weight: 800;
@@ -627,7 +776,7 @@ def main():
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 line-height: 1.1;
-            ">SPY Trading Dashboard</h1>
+            ">Multi-Ticker Trading Dashboard</h1>
             <p style="
                 margin: 0.25rem 0 0 0;
                 font-size: 0.9rem;
@@ -638,9 +787,33 @@ def main():
         </div>
     """, unsafe_allow_html=True)
     
+    # Ticker selector (SPY + IWM only - QQQ removed due to negative backtest results)
+    col1, col2, col3 = st.columns([1, 1, 8])
+    with col1:
+        spy_selected = st.button("📈 SPY", use_container_width=True, type="primary" if st.session_state.get('selected_ticker', 'SPY') == 'SPY' else "secondary")
+    with col2:
+        iwm_selected = st.button("🏭 IWM", use_container_width=True, type="primary" if st.session_state.get('selected_ticker', 'SPY') == 'IWM' else "secondary")
+    
+    # Update selected ticker based on button clicks
+    if spy_selected:
+        st.session_state.selected_ticker = 'SPY'
+        st.rerun()
+    elif iwm_selected:
+        st.session_state.selected_ticker = 'IWM'
+        st.rerun()
+    
+    # Get the active ticker (default to SPY)
+    active_ticker = st.session_state.get('selected_ticker', 'SPY')
+    
     # Auto-refresh control in sidebar
     with st.sidebar:
-        st.markdown("### ⚙️ Settings")
+        st.header("⚙️ Dashboard Settings")
+        
+        # Check for EOD summary (runs on every refresh)
+        current_time = datetime.now(ZoneInfo("America/New_York"))
+        check_and_send_eod_summary(current_time)
+        
+        # Auto-refresh toggle
         auto_refresh = st.checkbox(
             "Auto-refresh (30s)", 
             value=st.session_state.auto_refresh,
@@ -826,7 +999,7 @@ def main():
     )
     
     if page == "Dashboard":
-        render_dashboard()
+        render_dashboard(active_ticker)
     elif page == "Trade Journal":
         render_journal()
     elif page == "Backtest":
@@ -854,7 +1027,7 @@ def get_cached_iv_context(symbol: str, reference_price: float):
     """Cached IV context fetch."""
     return fetch_iv_context(symbol, reference_price)
 
-def render_dashboard():
+def render_dashboard(active_ticker: str = 'SPY'):
     """Render main dashboard with regime, intraday, and signals."""
     iv_context = {}
 
@@ -862,7 +1035,7 @@ def render_dashboard():
     try:
         with st.spinner("Loading market data..."):
             # Use cached functions
-            daily_df = get_cached_daily_data(config.SYMBOL, config.DAILY_LOOKBACK_DAYS)
+            daily_df = get_cached_daily_data(active_ticker, config.DAILY_LOOKBACK_DAYS)
             
             # Request last 5 days to ensure we get enough history (especially on Mondays)
             # But explicitly set end time to current time in ET to avoid timezone issues
@@ -872,7 +1045,7 @@ def render_dashboard():
             start_time_et = current_time_et - timedelta(days=5)
             
             intraday_raw = get_cached_intraday_data(
-                config.SYMBOL,
+                active_ticker,
                 config.INTRADAY_INTERVAL,
                 start_date=start_time_et,
                 end_date=current_time_et
@@ -1040,7 +1213,7 @@ def render_dashboard():
 
             # Fetch IV context first (needed for regime analysis)
             try:
-                iv_context = get_cached_iv_context(config.SYMBOL, intraday_df.iloc[0]['Open'])
+                iv_context = get_cached_iv_context(active_ticker, intraday_df.iloc[0]['Open'])
                 vix_level = iv_context.get('vix_level')
             except Exception:
                 iv_context = {}
@@ -1137,6 +1310,7 @@ def render_dashboard():
             current_time = datetime.now(ZoneInfo("America/New_York"))
             market_phase = get_market_phase(current_time)
 
+            # Check for Discord notification
             signal = generate_signal(
                 regime, 
                 intraday_analysis, 
@@ -1146,7 +1320,16 @@ def render_dashboard():
                 market_phase=market_phase
             )
 
-            maybe_notify_signal(signal, regime, intraday_analysis, iv_context, current_time, market_phase)
+            # Check for Discord notification
+            maybe_notify_signal(
+                signal=signal,
+                regime=regime,
+                intraday=intraday_analysis,
+                iv_context=iv_context,
+                current_time=current_time, # Assuming current_time_et should be current_time
+                market_phase=market_phase,
+                ticker=active_ticker
+            )
             
             # Track signal for EOD summary (only if signal was generated)
             if signal.get('direction') != 'NONE':
@@ -1222,7 +1405,14 @@ def render_dashboard():
             return f"<p><strong>Mixed trend:</strong> SPY trading between key moving averages. Direction unclear; wait for clearer signal.</p>"
     
     trend_summary = describe_trend(regime['trend'], dist_from_20d, dist_from_50d)
-    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f} <span style="color:{price_change_color};">({price_change_pct:+.2f}%)</span></div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div><div class="metric-card"><div class="label">Above 20D</div><div class="value">{dist_from_20d:+.2f}%</div></div></div>{trend_summary}"""
+    
+    # Get EMA 200 from intraday analysis
+    ema_200 = intraday_analysis.get('ema_trend', 0)
+    ema_200_status = "Above" if regime['latest_close'] > ema_200 and ema_200 > 0 else "Below" if ema_200 > 0 else "N/A"
+    ema_200_color = "#2bd47d" if ema_200_status == "Above" else "#ff5f6d" if ema_200_status == "Below" else "#8ea0bc"
+    ema_200_arrow = "↑" if ema_200_status == "Above" else "↓" if ema_200_status == "Below" else ""
+    
+    trend_body = f"""<div><div class="primary-value" style="color:{trend_color}">{regime['trend']}</div><p>{regime['trend_description']}</p></div><div class="metric-grid"><div class="metric-card"><div class="label">Latest Close</div><div class="value">${regime['latest_close']:.2f} <span style="color:{price_change_color};">({price_change_pct:+.2f}%)</span></div></div><div class="metric-card"><div class="label">200 EMA</div><div class="value">${ema_200:.2f} <span style="color:{ema_200_color}; font-weight: 700;">{ema_200_arrow}</span></div></div><div class="metric-card"><div class="label">20D MA</div><div class="value">${regime['ma_short']:.2f}</div></div><div class="metric-card"><div class="label">50D MA</div><div class="value">${regime['ma_long']:.2f}</div></div></div>{trend_summary}"""
     regime_cards.append(build_info_card("Trend Bias", "📊", trend_body, trend_color))
     
     gap_sign = "+" if regime['gap'] > 0 else ""
@@ -1264,13 +1454,8 @@ def render_dashboard():
         return f"<p><strong>{vibe} volatility:</strong> {' '.join(detail)}</p>"
 
     iv_body_parts = []
-    atm_iv = iv_context.get('atm_iv')
-    if atm_iv is not None:
-        expiry = iv_context.get('expiry', 'N/A')
-        iv_body_parts.append(f"<div class='primary-value'>{atm_iv:.2f}%</div><p>ATM IV (exp {expiry})</p>")
-    else:
-        iv_body_parts.append("<p>ATM IV unavailable</p>")
-
+    
+    # Show VIX first (more important)
     vix_level = iv_context.get('vix_level')
     vix_rank = iv_context.get('vix_rank')
     vix_percentile = iv_context.get('vix_percentile')
@@ -1281,12 +1466,20 @@ def render_dashboard():
         vix_change_color = "#2bd47d" if vix_change_pct and vix_change_pct > 0 else "#ff5f6d" if vix_change_pct and vix_change_pct < 0 else "#8ea0bc"
         vix_change_display = f" <span style='color:{vix_change_color}; font-size: 0.85rem;'>({vix_change_pct:+.2f}%)</span>" if vix_change_pct is not None else ""
         
-        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Level</div><div class='value'>{vix_level:.2f}{vix_change_display}</div></div>")
-        if vix_rank is not None:
-            iv_body_parts.append(f"<div class='metric-card'><div class='label'>VIX Rank</div><div class='value'>{vix_rank*100:.0f}%</div></div>")
+        iv_body_parts.append(f"<div class='primary-value'>{vix_level:.2f}{vix_change_display}</div><p>VIX Level (avg: 12-20)</p>")
+        iv_body_parts.append(f"<div class='metric-grid'><div class='metric-card'><div class='label'>VIX Rank</div><div class='value'>{vix_rank*100:.0f}%</div></div>" if vix_rank is not None else "<div class='metric-grid'>")
         if vix_percentile is not None:
             iv_body_parts.append(f"<div class='metric-card'><div class='label'>VIX Percentile</div><div class='value'>{vix_percentile*100:.0f}%</div></div>")
-        iv_body_parts.append("</div>")
+    else:
+        iv_body_parts.append("<p>VIX unavailable</p><div class='metric-grid'>")
+    
+    # Show ATM IV second
+    atm_iv = iv_context.get('atm_iv')
+    if atm_iv is not None:
+        expiry = iv_context.get('expiry', 'N/A')
+        iv_body_parts.append(f"<div class='metric-card'><div class='label'>ATM IV (exp {expiry})</div><div class='value'>{atm_iv:.2f}%</div></div>")
+    
+    iv_body_parts.append("</div>")
 
     summary_text = describe_iv(atm_iv, vix_level, vix_rank, vix_percentile)
     iv_body_parts.append(summary_text)
@@ -1338,6 +1531,7 @@ def render_dashboard():
             vwap=intraday_analysis.get('vwap_series'),
             ema_fast=intraday_analysis.get('ema_fast_series'),
             ema_slow=intraday_analysis.get('ema_slow_series'),
+            ema_trend=intraday_analysis.get('ema_trend_series'),
             current_price=intraday_analysis.get('price'),
             signal_direction=signal.get('direction')
         )
@@ -1700,10 +1894,20 @@ def render_journal():
 
 
 def render_backtest():
-    """Render backtest interface."""
+    """Render backtest interface with multi-ticker support."""
     st.header("🔬 Backtest Engine")
     
-    st.info("Run a backtest using the same signal logic as the dashboard.")
+    st.info("Run a backtest using the same signal logic as the dashboard. Select multiple tickers to test a combined portfolio.")
+    
+    # Ticker selection
+    col_t1, col_t2 = st.columns([3, 1])
+    with col_t1:
+        selected_tickers = st.multiselect(
+            "Select Tickers",
+            options=["SPY", "IWM"],
+            default=["SPY", "IWM"],
+            help="Select one or more tickers to backtest. Results will be aggregated."
+        )
     
     # Options mode toggle
     use_options = st.checkbox(
@@ -1751,6 +1955,10 @@ def render_backtest():
             st.rerun()
     
     if run_backtest:
+        if not selected_tickers:
+            st.error("Please select at least one ticker.")
+            return
+            
         if start_date >= end_date:
             st.error("Start date must be before end date.")
             return
@@ -1763,37 +1971,102 @@ def render_backtest():
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        def update_progress(progress_value, status_message):
-            """Callback to update progress bar."""
-            progress_bar.progress(progress_value)
-            status_text.text(status_message)
-        
         try:
-            print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}, options={use_options}")
-            status_text.text("Clearing caches and initializing backtest engine...")
-            engine = BacktestEngine()
+            print(f"🚀 APP DEBUG: Starting backtest with dates: {start_date} to {end_date}, options={use_options}, tickers={selected_tickers}")
             
-            status_text.text(f"Running backtest from {start_date} to {end_date}...")
-            results = engine.run_backtest(
-                datetime.combine(start_date, datetime.min.time()),
-                datetime.combine(end_date, datetime.max.time()),
-                use_options=use_options,
-                progress_callback=update_progress
-            )
+            all_trades = []
+            ticker_results = {}
             
-            print(f"🚀 APP DEBUG: Backtest completed. Trades: {results.get('num_trades', 0)}, Win Rate: {results.get('win_rate', 0):.2%}")
+            # Store original symbol to restore later
+            original_symbol = config.SYMBOL
             
-            # Store results in session state to persist across reruns
-            st.session_state.backtest_results = results
+            for i, ticker in enumerate(selected_tickers):
+                status_text.text(f"Running backtest for {ticker} ({i+1}/{len(selected_tickers)})...")
+                progress_bar.progress((i) / len(selected_tickers))
+                
+                # Temporarily override config.SYMBOL
+                config.SYMBOL = ticker
+                
+                # Initialize engine
+                engine = BacktestEngine()
+                
+                # Run backtest
+                results = engine.run_backtest(
+                    datetime.combine(start_date, datetime.min.time()),
+                    datetime.combine(end_date, datetime.max.time()),
+                    use_options=use_options
+                )
+                
+                # Process results
+                trades_df = results.get('trades', pd.DataFrame())
+                if not trades_df.empty:
+                    trades_df['ticker'] = ticker
+                    all_trades.append(trades_df)
+                
+                ticker_results[ticker] = {
+                    'trades': results.get('num_trades', 0),
+                    'win_rate': results.get('win_rate', 0),
+                    'net_pnl': results.get('total_pnl', 0.0),
+                    'avg_win': results.get('avg_win', 0.0),
+                    'avg_loss': results.get('avg_loss', 0.0),
+                    'profit_factor': abs(results.get('avg_win', 0) * results.get('win_rate', 0) / (results.get('avg_loss', 1) * (100 - results.get('win_rate', 0)))) if results.get('avg_loss', 0) != 0 else 0
+                }
+                
+                print(f"[{ticker}] Completed: {results.get('num_trades', 0)} trades, ${results.get('total_pnl', 0):.2f}")
+
+            # Restore original symbol
+            config.SYMBOL = original_symbol
+            
+            # Aggregate results
+            if all_trades:
+                combined_trades = pd.concat(all_trades, ignore_index=True)
+                combined_trades = combined_trades.sort_values('entry_time')
+                
+                total_trades = len(combined_trades)
+                wins = combined_trades[combined_trades['pnl'] > 0]
+                losses = combined_trades[combined_trades['pnl'] <= 0]
+                
+                win_rate = (len(wins) / total_trades * 100) if total_trades > 0 else 0
+                net_pnl = combined_trades['pnl'].sum()
+                avg_win = wins['pnl'].mean() if len(wins) > 0 else 0
+                avg_loss = losses['pnl'].mean() if len(losses) > 0 else 0
+                profit_factor = abs(wins['pnl'].sum() / losses['pnl'].sum()) if len(losses) > 0 and losses['pnl'].sum() != 0 else 0
+                
+                aggregate_results = {
+                    'total_trades': total_trades,
+                    'win_rate': win_rate,
+                    'net_pnl': net_pnl,
+                    'avg_win': avg_win,
+                    'avg_loss': avg_loss,
+                    'profit_factor': profit_factor,
+                    'trades_df': combined_trades
+                }
+            else:
+                aggregate_results = {
+                    'total_trades': 0,
+                    'win_rate': 0.0,
+                    'net_pnl': 0.0,
+                    'avg_win': 0.0,
+                    'avg_loss': 0.0,
+                    'profit_factor': 0.0,
+                    'trades_df': pd.DataFrame()
+                }
+            
+            # Store results in session state
+            st.session_state.backtest_results = {
+                'aggregate': aggregate_results,
+                'by_ticker': ticker_results,
+                'is_multi_ticker': True
+            }
             st.session_state.backtest_start_date = start_date
             st.session_state.backtest_end_date = end_date
             st.session_state.backtest_use_options = use_options
             
             # Clear progress indicators
-            progress_bar.empty()
-            status_text.empty()
+            progress_bar.progress(100)
+            status_text.text("Backtest complete!")
             
-            st.success(f"✅ Backtest complete! {results.get('num_trades', 0)} trades, {results.get('win_rate', 0):.1%} win rate")
+            st.success(f"✅ Backtest complete! {aggregate_results['total_trades']} trades, {aggregate_results['win_rate']:.1f}% win rate")
             st.rerun()
             
         except Exception as e:
@@ -1801,221 +2074,121 @@ def render_backtest():
             st.exception(e)
             import traceback
             st.code(traceback.format_exc())
+            # Ensure config is restored even on error
+            config.SYMBOL = original_symbol
     
     # Display results if they exist in session state
     if 'backtest_results' in st.session_state:
         results = st.session_state.backtest_results
         use_options_mode = st.session_state.get('backtest_use_options', False)
         
+        # Handle legacy single-ticker results (if any exist in session state from before)
+        if not results.get('is_multi_ticker'):
+            # Convert legacy format to new format for display
+            agg = {
+                'total_trades': results.get('num_trades', 0),
+                'win_rate': results.get('win_rate', 0),
+                'net_pnl': results.get('total_pnl', 0),
+                'avg_win': results.get('avg_win', 0),
+                'avg_loss': results.get('avg_loss', 0),
+                'profit_factor': 0, # Legacy didn't have this easily accessible here
+                'trades_df': results.get('trades', pd.DataFrame())
+            }
+            results = {'aggregate': agg, 'by_ticker': {}, 'is_multi_ticker': False}
+
+        agg = results['aggregate']
+        by_ticker = results['by_ticker']
+        
         # Show date range and mode
         mode_text = "Options Mode (Black-Scholes)" if use_options_mode else "Shares Mode"
         st.markdown(f"📅 **Backtest Period**: {st.session_state.backtest_start_date} to {st.session_state.backtest_end_date} | **Mode**: {mode_text}")
         
-        # Show debug info if available
-        if 'debug_info' in results:
-            debug = results['debug_info']
-            # Use a cleaner expander without extra spacing
-            with st.expander("🔍 Debug Information"):
-                st.write(f"**Days Processed:** {debug.get('days_processed', 0)}")
-                st.write(f"**Days Skipped:** {debug.get('days_skipped', 0)}")
-                st.write(f"**Total Trading Days:** {debug.get('trading_days_total', 0)}")
-                st.write(f"**Signals Generated:** {debug.get('signals_generated', 0)}")
-                if debug.get('days_skipped', 0) > 0:
-                    st.warning(f"⚠️ {debug['days_skipped']} days were skipped (likely no intraday data available)")
         
-        # Display results with minimal spacing
-        st.subheader("Backtest Results")
-        metrics_html = textwrap.dedent(
-            f"""
-            <div class="metric-grid" style="margin-top:1rem;">
-                <div class="metric-card">
-                    <div class="label">Total Trades</div>
-                    <div class="value">{results['num_trades']}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="label">Win Rate</div>
-                    <div class="value">{results['win_rate']*100:.1f}%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="label">Avg R Multiple</div>
-                    <div class="value">{results['avg_r_multiple']:.2f}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="label">Max Drawdown</div>
-                    <div class="value">{results['max_drawdown']*100:.2f}%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="label">Total P/L</div>
-                    <div class="value">${results['total_pnl']:.2f}</div>
-                </div>
-            </div>
-            """
-        )
-        st.markdown(metrics_html, unsafe_allow_html=True)
+        # --- Aggregate Metrics ---
+        st.subheader("📊 Aggregate Performance")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("Total Trades", agg['total_trades'])
+        m2.metric("Win Rate", f"{agg['win_rate']:.1f}%")
+        m3.metric("Net P/L", f"${agg['net_pnl']:.2f}", delta_color="normal")
+        m4.metric("Profit Factor", f"{agg['profit_factor']:.2f}")
+        m5.metric("Avg Trade", f"${(agg['avg_win'] * (agg['win_rate']/100) + agg['avg_loss'] * (1 - agg['win_rate']/100)):.2f}")
         
-        # Time-of-day performance analysis
-        if 'time_analysis' in results and results['time_analysis']:
-            st.subheader("⏰ Performance by Time of Day")
-            
-            time_data = results['time_analysis']
-            time_rows = []
-            for period, stats in time_data.items():
-                time_rows.append({
-                    'Period': period,
-                    'Trades': stats['trades'],
-                    'Win Rate': f"{stats['win_rate']*100:.1f}%",
-                    'Avg R': f"{stats['avg_r_multiple']:.2f}",
-                    'P/L': f"${stats['total_pnl']:.2f}"
+        # --- Per-Ticker Breakdown ---
+        if by_ticker:
+            st.subheader("📈 Ticker Breakdown")
+            ticker_data = []
+            for t, stats in by_ticker.items():
+                ticker_data.append({
+                    "Ticker": t,
+                    "Trades": stats['trades'],
+                    "Win Rate": f"{stats['win_rate']:.1f}%",
+                    "Net P/L": f"${stats['net_pnl']:.2f}",
+                    "Profit Factor": f"{stats['profit_factor']:.2f}",
+                    "Avg Win": f"${stats['avg_win']:.2f}",
+                    "Avg Loss": f"${stats['avg_loss']:.2f}"
                 })
-            
-            if time_rows:
-                time_df = pd.DataFrame(time_rows)
-                st.dataframe(time_df, use_container_width=True, hide_index=True)
-                
-                # Highlight best/worst periods
-                best_period = max(time_data.items(), key=lambda x: x[1]['total_pnl'])
-                worst_period = min(time_data.items(), key=lambda x: x[1]['total_pnl'])
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.success(f"✅ **Best Period**: {best_period[0]} - ${best_period[1]['total_pnl']:.2f} P/L ({best_period[1]['trades']} trades)")
-                with col2:
-                    st.error(f"❌ **Worst Period**: {worst_period[0]} - ${worst_period[1]['total_pnl']:.2f} P/L ({worst_period[1]['trades']} trades)")
-            
+            st.dataframe(pd.DataFrame(ticker_data), use_container_width=True, hide_index=True)
 
-        
-        if not results['equity_curve'].empty:
-            st.subheader("Equity Curve")
-            fig = plot_equity_curve(results['equity_curve'])
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Trades table - Streamlined display with expandable details
-        if 'trades' in results:
-            trades_data = results['trades']
-            # Handle both empty list and DataFrame cases
-            if isinstance(trades_data, list):
-                if len(trades_data) > 0:
-                    trades_df = pd.DataFrame(trades_data)
-                else:
-                    trades_df = pd.DataFrame()
-            else:
-                trades_df = trades_data
+        # --- Trade List ---
+        st.subheader("📝 Trade Log")
+        trades_df = agg['trades_df']
+        if not trades_df.empty:
+            # Format for display
+            display_df = trades_df.copy()
             
-            if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
-                st.subheader(f"Trades ({len(trades_df)} total)")
+            # Ensure datetime objects
+            display_df['entry_time'] = pd.to_datetime(display_df['entry_time'])
+            display_df['exit_time'] = pd.to_datetime(display_df['exit_time'])
+            
+            # Select columns to display
+            base_cols = ['ticker', 'entry_time', 'direction', 'entry_price', 'exit_price', 'pnl', 'exit_reason']
+            
+            # Add metadata columns if available
+            meta_cols = []
+            if 'confidence' in display_df.columns:
+                meta_cols.append('confidence')
+            if '0dte_permission' in display_df.columns:
+                meta_cols.append('0dte_permission')
+            if 'strike' in display_df.columns:
+                meta_cols.append('strike')
+            
+            # Combine columns
+            final_cols = ['ticker'] + ['entry_time', 'direction'] + meta_cols + ['entry_price', 'exit_price', 'pnl', 'exit_reason']
+            
+            # Handle single ticker case (no ticker column if not multi-ticker)
+            if 'ticker' not in display_df.columns:
+                final_cols.remove('ticker')
                 
-                # Create summary view
-                summary_df = trades_df.copy()
-                
-                # Check if we have new metadata columns (backward compatibility)
-                has_metadata = 'confidence' in summary_df.columns and '0dte_permission' in summary_df.columns
-                
-                # Format times
-                summary_df['entry_time'] = pd.to_datetime(summary_df['entry_time']).dt.strftime('%m/%d %H:%M')
-                summary_df['exit_time'] = pd.to_datetime(summary_df['exit_time']).dt.strftime('%m/%d %H:%M')
-                
-                # Format prices
-                if 'entry_underlying' in summary_df.columns:
-                    # Options mode
-                    summary_df['entry'] = summary_df.apply(
-                        lambda x: f"${x['entry_underlying']:.2f} (${x['entry_price']:.2f})", axis=1
-                    )
-                    summary_df['exit'] = summary_df.apply(
-                        lambda x: f"${x['exit_underlying']:.2f} (${x['exit_price']:.2f})", axis=1
-                    )
-                else:
-                    # Shares mode
-                    summary_df['entry'] = summary_df['entry_price'].apply(lambda x: f"${x:.2f}")
-                    summary_df['exit'] = summary_df['exit_price'].apply(lambda x: f"${x:.2f}")
-                
-                # Format P/L with color
-                summary_df['pnl_display'] = summary_df['pnl'].apply(
-                    lambda x: f"<span style='color: {'#00ff00' if x > 0 else '#ff4444'};'>${x:+.2f}</span>"
-                )
-                
-                # Add win/loss indicator
-                summary_df['result'] = summary_df['pnl'].apply(lambda x: '✅ WIN' if x > 0 else '❌ LOSS')
-                
-                # Create display columns based on available data
-                # Create display columns based on available data
-                if has_metadata:
-                    # Check if strike is available (options mode)
-                    if 'strike' in summary_df.columns:
-                        summary_df['strike_display'] = summary_df['strike'].apply(lambda x: f"${x:.0f}" if pd.notnull(x) else "-")
-                        display_cols = ['entry_time', 'exit_time', 'direction', 'strike_display', 'confidence', '0dte_permission', 
-                                       'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                        col_names = ['Entry Time', 'Exit Time', 'Direction', 'Strike', 'Confidence', '0DTE', 
-                                    'Entry', 'Exit', 'Exit Reason', 'P/L', 'Result']
-                    else:
-                        display_cols = ['entry_time', 'exit_time', 'direction', 'confidence', '0dte_permission', 
-                                       'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                        col_names = ['Entry Time', 'Exit Time', 'Direction', 'Confidence', '0DTE', 
-                                    'Entry', 'Exit', 'Exit Reason', 'P/L', 'Result']
-                else:
-                    # Old format without metadata
-                    display_cols = ['entry_time', 'exit_time', 'direction', 'entry', 'exit', 'exit_reason', 'pnl_display', 'result']
-                    col_names = ['Entry Time', 'Exit Time', 'Direction', 'Entry', 'Exit', 'Exit Reason', 'P/L', 'Result']
-                
-                # Rename for display
-                display_df = summary_df[display_cols].copy()
-                display_df.columns = col_names
-                
-                # Display summary table
-                st.markdown(display_df.to_html(
-                    classes="styled-table",
-                    index=False,
-                    border=0,
-                    escape=False
-                ), unsafe_allow_html=True)
-                
-                # Expandable details for each trade
-                if has_metadata:
-                    st.markdown("---")
-                    st.markdown("### 📋 Trade Details")
-                    
-                    for idx, trade in trades_df.iterrows():
-                        # Determine color based on P/L
-                        pnl_color = "#00ff00" if trade['pnl'] > 0 else "#ff4444"
-                        result_emoji = "✅" if trade['pnl'] > 0 else "❌"
-                        
-                        # Create expander title
-                        entry_time_str = pd.to_datetime(trade['entry_time']).strftime('%m/%d %H:%M')
-                        title = f"{result_emoji} Trade #{idx+1}: {trade['direction']} @ {entry_time_str} | P/L: ${trade['pnl']:+.2f}"
-                        
-                        with st.expander(title, expanded=False):
-                            col1, col2 = st.columns(2)
-                            
-                            with col1:
-                                st.markdown("**📊 Trade Info**")
-                                st.write(f"**Direction:** {trade['direction']}")
-                                st.write(f"**Entry Time:** {pd.to_datetime(trade['entry_time']).strftime('%m/%d %H:%M')}")
-                                st.write(f"**Exit Time:** {pd.to_datetime(trade['exit_time']).strftime('%m/%d %H:%M')}")
-                                st.write(f"**Confidence:** {trade.get('confidence', 'N/A')}")
-                                st.write(f"**0DTE Permission:** {trade.get('0dte_permission', 'N/A')}")
-                                st.write(f"**Exit Reason:** {trade['exit_reason']}")
-                                
-                                if 'strike' in trade and pd.notna(trade['strike']):
-                                    st.write(f"**Strike:** ${trade['strike']:.2f}")
-                            
-                            with col2:
-                                st.markdown("**💰 Prices & P/L**")
-                                if 'entry_underlying' in trade and pd.notna(trade['entry_underlying']):
-                                    st.write(f"**Entry SPY:** ${trade['entry_underlying']:.2f}")
-                                    st.write(f"**Entry Option:** ${trade['entry_price']:.2f}")
-                                    st.write(f"**Exit SPY:** ${trade['exit_underlying']:.2f}")
-                                    st.write(f"**Exit Option:** ${trade['exit_price']:.2f}")
-                                else:
-                                    st.write(f"**Entry:** ${trade['entry_price']:.2f}")
-                                    st.write(f"**Exit:** ${trade['exit_price']:.2f}")
-                                
-                                st.markdown(f"**P/L:** <span style='color: {pnl_color}; font-size: 1.2em; font-weight: bold;'>${trade['pnl']:+.2f}</span>", unsafe_allow_html=True)
-                            
-                            # Signal reason (full width)
-                            if 'reason' in trade and pd.notna(trade['reason']) and trade['reason'] != 'N/A':
-                                st.markdown("**🎯 Signal Reason:**")
-                                st.info(trade['reason'])
-                else:
-                    st.info("💡 Run a new backtest to see detailed signal conditions for each trade.")
+            # Filter dataframe
+            display_df = display_df[final_cols]
+            
+            # Apply styling
+            def color_pnl(val):
+                color = '#00FF00' if val > 0 else '#FF4444'
+                return f'color: {color}'
+
+            # Create styled dataframe
+            st.dataframe(
+                display_df.style.map(color_pnl, subset=['pnl']).format({
+                    'entry_time': '{:%Y-%m-%d %H:%M}',
+                    'exit_time': '{:%Y-%m-%d %H:%M}',
+                    'entry_price': '${:.2f}',
+                    'exit_price': '${:.2f}',
+                    'pnl': '${:+.2f}',
+                    'strike': '${:.2f}'
+                }),
+                use_container_width=True,
+                height=500,
+                column_config={
+                    "entry_time": st.column_config.DatetimeColumn("Entry", format="MM/DD HH:mm"),
+                    "exit_time": st.column_config.DatetimeColumn("Exit", format="MM/DD HH:mm"),
+                    "pnl": st.column_config.NumberColumn("P/L", format="$%.2f"),
+                    "confidence": st.column_config.TextColumn("Conf"),
+                    "0dte_permission": st.column_config.TextColumn("Perm"),
+                }
+            )
+        else:
+            st.info("No trades generated in this period.")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,50 @@
+{
+  "date": "2025-12-03",
+  "last_sent_date": null,
+  "market_data": {
+    "open": 681.82,
+    "high": 683.82,
+    "low": 679.39,
+    "close": 681.58,
+    "volume": 768066
+  },
+  "vix_data": {
+    "open": null,
+    "close": 16.540000915527344,
+    "high": null,
+    "low": null
+  },
+  "iv_data": {
+    "high": 0.196310546875,
+    "low": 0.196310546875
+  },
+  "range_pct": 0.6497316007157407,
+  "dte_permission": "CAUTION",
+  "signals": [],
+  "session_breakdown": {
+    "Early Open (Reduced)": {
+      "call": 0,
+      "put": 0
+    },
+    "Morning Drive": {
+      "call": 0,
+      "put": 0
+    },
+    "Mid-Morning Trend": {
+      "call": 0,
+      "put": 0
+    },
+    "Early Afternoon": {
+      "call": 0,
+      "put": 0
+    },
+    "Afternoon Wake-up (Reduced)": {
+      "call": 0,
+      "put": 0
+    },
+    "Breakout Window (Boosted)": {
+      "call": 0,
+      "put": 0
+    }
+  }
+}

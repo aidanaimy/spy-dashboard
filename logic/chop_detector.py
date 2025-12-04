@@ -5,7 +5,7 @@ Chop detection logic to filter out ranging/choppy market conditions.
 import pandas as pd
 import numpy as np
 from typing import Dict
-import config
+import core.config as config
 
 
 def calculate_atr(df: pd.DataFrame, period: int = 14) -> float:

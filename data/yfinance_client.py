@@ -8,7 +8,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
-import config
+import core.config as config
 
 
 def get_daily_data(symbol: str = config.SYMBOL, days: int = config.DAILY_LOOKBACK_DAYS) -> pd.DataFrame:

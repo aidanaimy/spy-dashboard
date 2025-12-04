@@ -1,0 +1,78 @@
+{
+  "date": "2025-12-04",
+  "last_sent_date": "2025-12-04",
+  "market_data": {
+    "open": 685.3,
+    "high": 685.32,
+    "low": 681.4,
+    "close": 684.24,
+    "volume": 705182
+  },
+  "vix_data": {
+    "open": null,
+    "close": 15.779999732971191,
+    "high": null,
+    "low": null
+  },
+  "iv_data": {
+    "high": 24.07302490234375,
+    "low": 1.8686571044921878
+  },
+  "range_pct": 0.5720122574055264,
+  "dte_permission": "CAUTION",
+  "signals": [
+    {
+      "time": "10:00",
+      "direction": "PUT",
+      "confidence": "MEDIUM",
+      "permission": "CAUTION",
+      "session": "Morning Drive",
+      "reason": "Micro trend down; Price below VWAP; Negative 5-bar return; Aligned with Intraday Trend (Price < EMA200); Morning Drive (strong directional movement)",
+      "is_actionable": false
+    },
+    {
+      "time": "13:50",
+      "direction": "CALL",
+      "confidence": "LOW",
+      "permission": "FAVORABLE",
+      "session": "Afternoon Wake-up (Reduced)",
+      "reason": "Bullish trend; Micro trend up; Price above VWAP; Aligned with Intraday Trend (Price > EMA200); Afternoon transition (1:45-2:15) - reduced confidence",
+      "is_actionable": false
+    },
+    {
+      "time": "15:02",
+      "direction": "CALL",
+      "confidence": "LOW",
+      "permission": "FAVORABLE",
+      "session": "Breakout Window (Boosted)",
+      "reason": "Bullish trend; Price above VWAP; Afternoon breakout window - boosted confidence",
+      "is_actionable": false
+    }
+  ],
+  "session_breakdown": {
+    "Early Open (Reduced)": {
+      "call": 0,
+      "put": 0
+    },
+    "Morning Drive": {
+      "call": 0,
+      "put": 1
+    },
+    "Mid-Morning Trend": {
+      "call": 0,
+      "put": 0
+    },
+    "Early Afternoon": {
+      "call": 0,
+      "put": 0
+    },
+    "Afternoon Wake-up (Reduced)": {
+      "call": 1,
+      "put": 0
+    },
+    "Breakout Window (Boosted)": {
+      "call": 1,
+      "put": 0
+    }
+  }
+}

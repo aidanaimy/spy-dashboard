@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, os.path.abspath('.'))
 
 from data.alpaca_client import get_intraday_data
-import config
+import core.config as config
 
 def get_stats():
     et_tz = ZoneInfo("America/New_York")

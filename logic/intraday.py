@@ -4,8 +4,9 @@ Intraday analysis: VWAP, EMAs, returns, volatility, and micro trend.
 
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from typing import Dict, Optional
-import config
+import core.config as config
 
 
 def calculate_vwap(df: pd.DataFrame) -> pd.Series:
@@ -149,38 +150,41 @@ def analyze_intraday(df: pd.DataFrame, previous_ema_fast: Optional[float] = None
     df_sorted = df.sort_index()
     
     # Calculate indicators
-    vwap = calculate_vwap(df_sorted)  # VWAP resets each day
-    ema_fast = calculate_ema(df_sorted, config.EMA_FAST, previous_ema=previous_ema_fast)  # EMA carries over
-    ema_slow = calculate_ema(df_sorted, config.EMA_SLOW, previous_ema=previous_ema_slow)  # EMA carries over
+    vwap = calculate_vwap(df)
+    ema_fast = df['Close'].ewm(span=config.EMA_FAST, adjust=False).mean()
+    ema_slow = df['Close'].ewm(span=config.EMA_SLOW, adjust=False).mean()
+    ema_trend = df['Close'].ewm(span=config.EMA_TREND, adjust=False).mean()
     
     # Get latest values
-    latest_idx = df_sorted.index[-1]
-    latest_price = df_sorted.loc[latest_idx, 'Close']
-    latest_vwap = vwap.loc[latest_idx]
-    latest_ema_fast = ema_fast.loc[latest_idx]
-    latest_ema_slow = ema_slow.loc[latest_idx]
+    current_price = df['Close'].iloc[-1]
+    current_vwap = vwap.iloc[-1]
+    current_ema_fast = ema_fast.iloc[-1]
+    current_ema_slow = ema_slow.iloc[-1]
+    current_ema_trend = ema_trend.iloc[-1]
     
     # Calculate returns
     returns_1 = calculate_returns(df_sorted, periods=1)
     returns_5 = calculate_returns(df_sorted, periods=5)
     
+    latest_idx = df_sorted.index[-1]
     latest_return_1 = returns_1.loc[latest_idx] if not pd.isna(returns_1.loc[latest_idx]) else 0.0
     latest_return_5 = returns_5.loc[latest_idx] if not pd.isna(returns_5.loc[latest_idx]) else 0.0
     
     # Distance from VWAP
-    vwap_distance = ((latest_price - latest_vwap) / latest_vwap) * 100 if latest_vwap > 0 else 0.0
+    vwap_distance = ((current_price - current_vwap) / current_vwap) * 100 if current_vwap > 0 else 0.0
     
     # Realized volatility
     realized_vol = calculate_realized_volatility(df_sorted)
     
     # Micro trend
-    micro_trend = get_micro_trend(latest_price, latest_ema_fast, latest_ema_slow, latest_vwap)
+    micro_trend = get_micro_trend(current_price, current_ema_fast, current_ema_slow, current_vwap)
     
     return {
-        'price': latest_price,
-        'vwap': latest_vwap,
-        'ema_fast': latest_ema_fast,
-        'ema_slow': latest_ema_slow,
+        'price': current_price,
+        'vwap': current_vwap,
+        'ema_fast': current_ema_fast,
+        'ema_slow': current_ema_slow,
+        'ema_trend': current_ema_trend,
         'return_1': latest_return_1,
         'return_5': latest_return_5,
         'vwap_distance': vwap_distance,
@@ -188,6 +192,7 @@ def analyze_intraday(df: pd.DataFrame, previous_ema_fast: Optional[float] = None
         'micro_trend': micro_trend,
         'vwap_series': vwap,
         'ema_fast_series': ema_fast,
-        'ema_slow_series': ema_slow
+        'ema_slow_series': ema_slow,
+        'ema_trend_series': ema_trend
     }
 

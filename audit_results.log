@@ -1,0 +1,263 @@
+2025-12-03 15:02:46.825 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.877 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.877 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 
+  [33m[1mWarning:[0m to view this Streamlit app on a browser, run it with the following
+  command:
+
+    streamlit run scripts/audit_system.py [ARGUMENTS]
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Session state does not function when running a script without `streamlit run`
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-12-03 15:02:46.901 No runtime found, using MemoryCacheStorageManager
+2025-12-03 15:02:46.901 No runtime found, using MemoryCacheStorageManager
+2025-12-03 15:02:46.901 No runtime found, using MemoryCacheStorageManager
+================================================================================
+COMPREHENSIVE SYSTEM AUDIT
+================================================================================
+Started: 2025-12-03 15:02:40
+
+📊 DATA FETCHING TESTS
+--------------------------------------------------------------------------------
+✅ Alpaca Connection
+✅ Alpaca Daily Data
+✅ Alpaca Intraday Data
+✅ VIX Fetching (with fallback)
+
+🧠 LOGIC MODULE TESTS
+--------------------------------------------------------------------------------
+✅ Regime Analysis
+✅ VIX Hard Deck (< 15 = AVOID)
+✅ Signal Generation
+✅ Time Filters
+✅ Chop Detection
+
+📈 BACKTEST ENGINE TESTS
+--------------------------------------------------------------------------------
+✅ Backtest Engine: Using Alpaca data source
+✅ Backtest Initialization
+🚀 Batch fetching intraday data from 2025-11-01 to 2025-11-15...
+✅ Batch fetch successful: 1922 bars
+DEBUG Loop Start for 2025-11-03: Total bars in dataframe = 192
+  First bar: 2025-11-03 04:00:00-05:00
+  Last bar: 2025-11-03 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-03 14:55:00-05:00, time_str=14:55, Close=683.40, High=683.64, Low=683.33, Open=683.51
+DEBUG Loop End for 2025-11-03: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-03 16:00:00-05:00
+DEBUG Loop Start for 2025-11-04: Total bars in dataframe = 193
+  First bar: 2025-11-04 04:00:00-05:00
+  Last bar: 2025-11-04 20:00:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-04 14:55:00-05:00, time_str=14:55, Close=675.17, High=675.4, Low=674.87, Open=674.91
+DEBUG Loop End for 2025-11-04: Bars processed=76, Skipped before start=69, Skipped after close=48, Last processed=2025-11-04 16:00:00-05:00
+DEBUG Loop Start for 2025-11-05: Total bars in dataframe = 192
+  First bar: 2025-11-05 04:00:00-05:00
+  Last bar: 2025-11-05 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-05 14:55:00-05:00, time_str=14:55, Close=680.23, High=680.44, Low=680.22, Open=680.365
+DEBUG Loop End for 2025-11-05: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-05 16:00:00-05:00
+DEBUG Loop Start for 2025-11-06: Total bars in dataframe = 192
+  First bar: 2025-11-06 04:00:00-05:00
+  Last bar: 2025-11-06 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-06 14:55:00-05:00, time_str=14:55, Close=672.99, High=673.418, Low=672.46, Open=672.545
+DEBUG Loop End for 2025-11-06: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-06 16:00:00-05:00
+DEBUG Loop Start for 2025-11-07: Total bars in dataframe = 193
+  First bar: 2025-11-07 04:00:00-05:00
+  Last bar: 2025-11-07 20:00:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-07 14:55:00-05:00, time_str=14:55, Close=669.90, High=669.98, Low=669.05, Open=669.69
+DEBUG Loop End for 2025-11-07: Bars processed=76, Skipped before start=69, Skipped after close=48, Last processed=2025-11-07 16:00:00-05:00
+DEBUG Loop Start for 2025-11-10: Total bars in dataframe = 192
+  First bar: 2025-11-10 04:00:00-05:00
+  Last bar: 2025-11-10 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-10 14:55:00-05:00, time_str=14:55, Close=681.30, High=681.67, Low=681.18, Open=681.539
+DEBUG Loop End for 2025-11-10: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-10 16:00:00-05:00
+DEBUG Loop Start for 2025-11-11: Total bars in dataframe = 192
+  First bar: 2025-11-11 04:00:00-05:00
+  Last bar: 2025-11-11 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-11 14:55:00-05:00, time_str=14:55, Close=683.14, High=683.42, Low=682.96, Open=683.295
+DEBUG Loop End for 2025-11-11: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-11 16:00:00-05:00
+DEBUG Loop Start for 2025-11-12: Total bars in dataframe = 192
+  First bar: 2025-11-12 04:00:00-05:00
+  Last bar: 2025-11-12 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-12 14:55:00-05:00, time_str=14:55, Close=682.81, High=683.255, Low=682.51, Open=683.1
+DEBUG Loop End for 2025-11-12: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-12 16:00:00-05:00
+DEBUG Loop Start for 2025-11-13: Total bars in dataframe = 192
+  First bar: 2025-11-13 04:00:00-05:00
+  Last bar: 2025-11-13 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-13 14:55:00-05:00, time_str=14:55, Close=671.69, High=671.95, Low=670.52, Open=671.39
+DEBUG Loop End for 2025-11-13: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-13 16:00:00-05:00
+DEBUG Loop Start for 2025-11-14: Total bars in dataframe = 192
+  First bar: 2025-11-14 04:00:00-05:00
+  Last bar: 2025-11-14 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-14 14:55:00-05:00, time_str=14:55, Close=674.65, High=674.8, Low=674.165, Open=674.49
+DEBUG Loop End for 2025-11-14: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-14 16:00:00-05:00
+✅ Realistic Costs Applied
+✅ Spread Filter (15% max)
+
+🗓️  WEEKEND & SPECIAL DAY TESTS
+--------------------------------------------------------------------------------
+✅ Weekend Detection
+✅ Early Close Detection
+
+🔔 DISCORD NOTIFICATION TESTS
+--------------------------------------------------------------------------------
+✅ Discord Webhook Config
+✅ Signal Notification Logic
+
+⚙️  CONFIGURATION TESTS
+--------------------------------------------------------------------------------
+✅ Config Values Sane
+
+🎯 REGRESSION TESTS (GROUND TRUTH BASELINES)
+--------------------------------------------------------------------------------
+Running November 2025 baseline validation...
+🚀 Batch fetching intraday data from 2025-11-01 to 2025-11-30...
+✅ Batch fetch successful: 3613 bars
+DEBUG Loop Start for 2025-11-03: Total bars in dataframe = 192
+  First bar: 2025-11-03 04:00:00-05:00
+  Last bar: 2025-11-03 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-03 14:55:00-05:00, time_str=14:55, Close=683.40, High=683.64, Low=683.33, Open=683.51
+DEBUG Loop End for 2025-11-03: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-03 16:00:00-05:00
+DEBUG Loop Start for 2025-11-04: Total bars in dataframe = 193
+  First bar: 2025-11-04 04:00:00-05:00
+  Last bar: 2025-11-04 20:00:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-04 14:55:00-05:00, time_str=14:55, Close=675.17, High=675.4, Low=674.87, Open=674.91
+DEBUG Loop End for 2025-11-04: Bars processed=76, Skipped before start=69, Skipped after close=48, Last processed=2025-11-04 16:00:00-05:00
+DEBUG Loop Start for 2025-11-05: Total bars in dataframe = 192
+  First bar: 2025-11-05 04:00:00-05:00
+  Last bar: 2025-11-05 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-05 14:55:00-05:00, time_str=14:55, Close=680.23, High=680.44, Low=680.22, Open=680.365
+DEBUG Loop End for 2025-11-05: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-05 16:00:00-05:00
+DEBUG Loop Start for 2025-11-06: Total bars in dataframe = 192
+  First bar: 2025-11-06 04:00:00-05:00
+  Last bar: 2025-11-06 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-06 14:55:00-05:00, time_str=14:55, Close=672.99, High=673.418, Low=672.46, Open=672.545
+DEBUG Loop End for 2025-11-06: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-06 16:00:00-05:00
+DEBUG Loop Start for 2025-11-07: Total bars in dataframe = 193
+  First bar: 2025-11-07 04:00:00-05:00
+  Last bar: 2025-11-07 20:00:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-07 14:55:00-05:00, time_str=14:55, Close=669.90, High=669.98, Low=669.05, Open=669.69
+DEBUG Loop End for 2025-11-07: Bars processed=76, Skipped before start=69, Skipped after close=48, Last processed=2025-11-07 16:00:00-05:00
+DEBUG Loop Start for 2025-11-10: Total bars in dataframe = 192
+  First bar: 2025-11-10 04:00:00-05:00
+  Last bar: 2025-11-10 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-10 14:55:00-05:00, time_str=14:55, Close=681.30, High=681.67, Low=681.18, Open=681.539
+DEBUG Loop End for 2025-11-10: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-10 16:00:00-05:00
+DEBUG Loop Start for 2025-11-11: Total bars in dataframe = 192
+  First bar: 2025-11-11 04:00:00-05:00
+  Last bar: 2025-11-11 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-11 14:55:00-05:00, time_str=14:55, Close=683.14, High=683.42, Low=682.96, Open=683.295
+DEBUG Loop End for 2025-11-11: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-11 16:00:00-05:00
+DEBUG Loop Start for 2025-11-12: Total bars in dataframe = 192
+  First bar: 2025-11-12 04:00:00-05:00
+  Last bar: 2025-11-12 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-12 14:55:00-05:00, time_str=14:55, Close=682.81, High=683.255, Low=682.51, Open=683.1
+DEBUG Loop End for 2025-11-12: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-12 16:00:00-05:00
+DEBUG Loop Start for 2025-11-13: Total bars in dataframe = 192
+  First bar: 2025-11-13 04:00:00-05:00
+  Last bar: 2025-11-13 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-13 14:55:00-05:00, time_str=14:55, Close=671.69, High=671.95, Low=670.52, Open=671.39
+DEBUG Loop End for 2025-11-13: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-13 16:00:00-05:00
+DEBUG Loop Start for 2025-11-14: Total bars in dataframe = 192
+  First bar: 2025-11-14 04:00:00-05:00
+  Last bar: 2025-11-14 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-14 14:55:00-05:00, time_str=14:55, Close=674.65, High=674.8, Low=674.165, Open=674.49
+DEBUG Loop End for 2025-11-14: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-14 16:00:00-05:00
+DEBUG Loop Start for 2025-11-17: Total bars in dataframe = 192
+  First bar: 2025-11-17 04:00:00-05:00
+  Last bar: 2025-11-17 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-17 14:55:00-05:00, time_str=14:55, Close=662.79, High=663.925, Low=662.73, Open=663.87
+DEBUG Loop End for 2025-11-17: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-17 16:00:00-05:00
+DEBUG Loop Start for 2025-11-18: Total bars in dataframe = 192
+  First bar: 2025-11-18 04:00:00-05:00
+  Last bar: 2025-11-18 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-18 14:55:00-05:00, time_str=14:55, Close=664.42, High=664.48, Low=662.97, Open=663.25
+DEBUG Loop End for 2025-11-18: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-18 16:00:00-05:00
+DEBUG Loop Start for 2025-11-19: Total bars in dataframe = 192
+  First bar: 2025-11-19 04:00:00-05:00
+  Last bar: 2025-11-19 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-19 14:55:00-05:00, time_str=14:55, Close=661.25, High=662.01, Low=660.78, Open=661.42
+DEBUG Loop End for 2025-11-19: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-19 16:00:00-05:00
+DEBUG Loop Start for 2025-11-20: Total bars in dataframe = 192
+  First bar: 2025-11-20 04:00:00-05:00
+  Last bar: 2025-11-20 19:55:00-05:00
+DEBUG Options Check: Time=2025-11-20 11:40:00-05:00 (11:40), Underlying=664.44, Option_Price=3.6379, PnL%=30.99%, T=0.002646, Strike=666.0
+DEBUG Options Check: Time=2025-11-20 11:45:00-05:00 (11:45), Underlying=664.54, Option_Price=3.5541, PnL%=27.97%, T=0.002595, Strike=666.0
+DEBUG Options Check: Time=2025-11-20 11:50:00-05:00 (11:50), Underlying=662.90, Option_Price=4.5477, PnL%=63.75%, T=0.002544, Strike=666.0
+DEBUG Options Check: Time=2025-11-20 11:55:00-05:00 (11:55), Underlying=660.20, Option_Price=6.5063, PnL%=134.27%, T=0.002493, Strike=666.0
+DEBUG TP Exit: Time=2025-11-20 11:55:00-05:00 (11:55), Underlying=660.20, Entry_Underlying=665.80, Option_Entry=2.7772, Option_Exit=6.5063, Strike=666.0, T=0.002493, IV=0.2078, PnL%=134.27%
+DEBUG Options Check: Time=2025-11-20 13:35:00-05:00 (13:35), Underlying=657.13, Option_Price=3.1339, PnL%=47.57%, T=0.001475, Strike=659.0
+DEBUG Options Check: Time=2025-11-20 13:40:00-05:00 (13:40), Underlying=656.33, Option_Price=3.6330, PnL%=71.07%, T=0.001425, Strike=659.0
+DEBUG Options Check: Time=2025-11-20 13:45:00-05:00 (13:45), Underlying=655.63, Option_Price=4.1058, PnL%=93.33%, T=0.001374, Strike=659.0
+DEBUG TP Exit: Time=2025-11-20 13:45:00-05:00 (13:45), Underlying=655.63, Entry_Underlying=658.75, Option_Entry=2.1237, Option_Exit=4.1058, Strike=659.0, T=0.001374, IV=0.2078, PnL%=93.33%
+DEBUG Options Check: Time=2025-11-20 13:50:00-05:00 (13:50), Underlying=654.38, Option_Price=2.8657, PnL%=38.26%, T=0.001323, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 13:55:00-05:00 (13:55), Underlying=655.06, Option_Price=2.4226, PnL%=16.88%, T=0.001272, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 14:00:00-05:00 (14:00), Underlying=654.41, Option_Price=2.7753, PnL%=33.90%, T=0.001221, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 14:05:00-05:00 (14:05), Underlying=655.22, Option_Price=2.2556, PnL%=8.83%, T=0.001170, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 14:10:00-05:00 (14:10), Underlying=655.36, Option_Price=2.1380, PnL%=3.15%, T=0.001119, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 14:15:00-05:00 (14:15), Underlying=655.71, Option_Price=1.9093, PnL%=-7.88%, T=0.001068, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 14:20:00-05:00 (14:20), Underlying=655.35, Option_Price=2.0614, PnL%=-0.54%, T=0.001018, Strike=656.0
+DEBUG Options Check: Time=2025-11-20 14:25:00-05:00 (14:25), Underlying=657.01, Option_Price=1.2233, PnL%=-40.98%, T=0.000967, Strike=656.0
+DEBUG SL Exit: Time=2025-11-20 14:25:00-05:00 (14:25), Underlying=657.01, Entry_Underlying=655.63, Option_Entry=2.0727, Option_Exit=1.2233, Strike=656.0, T=0.000967, IV=0.2078, PnL%=-40.98%
+DEBUG 14:55 Bar: idx=2025-11-20 14:55:00-05:00, time_str=14:55, Close=658.11, High=658.25, Low=656.55, Open=656.76
+DEBUG Loop End for 2025-11-20: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-20 16:00:00-05:00
+DEBUG Loop Start for 2025-11-21: Total bars in dataframe = 192
+  First bar: 2025-11-21 04:00:00-05:00
+  Last bar: 2025-11-21 19:55:00-05:00
+DEBUG Options Check: Time=2025-11-21 13:35:00-05:00 (13:35), Underlying=660.59, Option_Price=3.5229, PnL%=14.88%, T=0.001475, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 13:40:00-05:00 (13:40), Underlying=660.76, Option_Price=3.5840, PnL%=16.87%, T=0.001425, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 13:45:00-05:00 (13:45), Underlying=663.05, Option_Price=5.0908, PnL%=66.00%, T=0.001374, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 13:50:00-05:00 (13:50), Underlying=662.45, Option_Price=4.6135, PnL%=50.44%, T=0.001323, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 13:55:00-05:00 (13:55), Underlying=662.25, Option_Price=4.4289, PnL%=44.42%, T=0.001272, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 14:00:00-05:00 (14:00), Underlying=663.13, Option_Price=5.0313, PnL%=64.06%, T=0.001221, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 14:05:00-05:00 (14:05), Underlying=663.67, Option_Price=5.4099, PnL%=76.40%, T=0.001170, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 14:10:00-05:00 (14:10), Underlying=663.27, Option_Price=5.0577, PnL%=64.92%, T=0.001119, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 14:15:00-05:00 (14:15), Underlying=663.63, Option_Price=5.3010, PnL%=72.85%, T=0.001068, Strike=659.0
+DEBUG Options Check: Time=2025-11-21 14:20:00-05:00 (14:20), Underlying=664.22, Option_Price=5.7445, PnL%=87.32%, T=0.001018, Strike=659.0
+DEBUG TP Exit: Time=2025-11-21 14:20:00-05:00 (14:20), Underlying=664.22, Entry_Underlying=659.44, Option_Entry=3.0667, Option_Exit=5.7445, Strike=659.0, T=0.001018, IV=0.2597, PnL%=87.32%
+DEBUG Options Check: Time=2025-11-21 14:25:00-05:00 (14:25), Underlying=664.23, Option_Price=2.2711, PnL%=-6.95%, T=0.000967, Strike=664.0
+DEBUG 14:55 Bar: idx=2025-11-21 14:55:00-05:00, time_str=14:55, Close=661.75, High=661.99, Low=661.11, Open=661.58
+DEBUG Loop End for 2025-11-21: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-21 16:00:00-05:00
+DEBUG Loop Start for 2025-11-24: Total bars in dataframe = 192
+  First bar: 2025-11-24 04:00:00-05:00
+  Last bar: 2025-11-24 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-24 14:55:00-05:00, time_str=14:55, Close=668.30, High=668.66, Low=668.18, Open=668.26
+DEBUG Loop End for 2025-11-24: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-24 16:00:00-05:00
+DEBUG Loop Start for 2025-11-25: Total bars in dataframe = 191
+  First bar: 2025-11-25 04:00:00-05:00
+  Last bar: 2025-11-25 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-25 14:55:00-05:00, time_str=14:55, Close=673.94, High=674.11, Low=673.57, Open=673.72
+DEBUG Loop End for 2025-11-25: Bars processed=76, Skipped before start=68, Skipped after close=47, Last processed=2025-11-25 16:00:00-05:00
+DEBUG Loop Start for 2025-11-26: Total bars in dataframe = 192
+  First bar: 2025-11-26 04:00:00-05:00
+  Last bar: 2025-11-26 19:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-26 14:55:00-05:00, time_str=14:55, Close=680.86, High=680.98, Low=680.66, Open=680.9
+DEBUG Loop End for 2025-11-26: Bars processed=76, Skipped before start=69, Skipped after close=47, Last processed=2025-11-26 16:00:00-05:00
+DEBUG Loop Start for 2025-11-28: Total bars in dataframe = 156
+  First bar: 2025-11-28 04:00:00-05:00
+  Last bar: 2025-11-28 16:55:00-05:00
+DEBUG 14:55 Bar: idx=2025-11-28 14:55:00-05:00, time_str=14:55, Close=683.64, High=683.73, Low=683.59, Open=683.6286
+DEBUG Loop End for 2025-11-28: Bars processed=76, Skipped before start=69, Skipped after close=11, Last processed=2025-11-28 16:00:00-05:00
+❌ November 2025 Baseline (18 trades, $1,669 P/L): Trade count mismatch: expected 18, got 5
+
+================================================================================
+AUDIT SUMMARY
+================================================================================
+
+Total Tests: 18
+Passed: 17 (94.4%)
+Failed: 1 (5.6%)
+
+❌ FAILED TESTS:
+  - November 2025 Baseline (18 trades, $1,669 P/L)
+    Error: Trade count mismatch: expected 18, got 5
+
+================================================================================
+⚠️  1 TEST(S) FAILED - REVIEW BEFORE GOING LIVE
+================================================================================

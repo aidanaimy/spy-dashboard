@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import os
 from dotenv import load_dotenv
-import config
+import core.config as config
 
 # Try to import Alpaca package
 try:

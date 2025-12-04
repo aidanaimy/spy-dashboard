@@ -6,7 +6,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from typing import List, Dict, Optional
-import config
+import core.config as config
 
 
 def ensure_journal_file():

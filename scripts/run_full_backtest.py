@@ -10,22 +10,23 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backtest.backtest_engine import BacktestEngine
-import config
+import core.config as config
 
 def run_full_backtest():
     """Run backtest over maximum available period."""
     
     print("=" * 80)
-    print("SPY 0DTE OPTIONS BACKTEST - 2 YEAR (WIDE STOPS: TP 80%, SL 40%)")
+    print("SPY 0DTE OPTIONS BACKTEST - 1 YEAR (TRUTHFUL BASELINE)")
     print("=" * 80)
     print()
     
     # Calculate date range
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=730)  # 2 years
+    start_date = end_date - timedelta(days=365)  # 1 year
     
     print(f"📅 Backtest Period: {start_date.date()} to {end_date.date()}")
     print(f"📊 Mode: Options (Black-Scholes)")
@@ -35,7 +36,7 @@ def run_full_backtest():
     
     # Initialize engine
     print("🚀 Initializing backtest engine...")
-    engine = BacktestEngine()
+    engine = BacktestEngine(use_options=True)
     
     # Progress callback
     def progress_callback(progress, message):

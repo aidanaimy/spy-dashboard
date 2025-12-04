@@ -5,7 +5,7 @@ Updated based on optimal trading windows.
 
 from datetime import datetime
 from typing import Dict
-import config
+import core.config as config
 
 
 def get_time_filter(current_time: datetime) -> Dict[str, any]:

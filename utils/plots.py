@@ -8,12 +8,13 @@ import pandas as pd
 from typing import Optional
 from zoneinfo import ZoneInfo
 from datetime import datetime, time
-import config  # Import config for session times
+import core.config as config  # Import config for session times
 
 
 def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None,
                               ema_fast: Optional[pd.Series] = None,
                               ema_slow: Optional[pd.Series] = None,
+                              ema_trend: Optional[pd.Series] = None,
                               current_price: Optional[float] = None,
                               signal_direction: Optional[str] = None) -> go.Figure:
     """
@@ -184,6 +185,21 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
                 yaxis='y'
             )
             fig.add_trace(ema_slow_trace, row=1, col=1)
+    
+    # Trend EMA (200) overlay - explicitly bind to row 1 subplot
+    if ema_trend is not None:
+        ema_trend_aligned = align_series(ema_trend, df_copy.index)
+        if ema_trend_aligned is not None and not ema_trend_aligned.isna().all():
+            ema_trend_trace = go.Scatter(
+                x=df_copy.index,
+                y=ema_trend_aligned,
+                mode='lines',
+                name=f'EMA {200}',
+                line=dict(color='#FFFF00', width=2, dash='dot'),  # Yellow dotted line
+                xaxis='x',
+                yaxis='y'
+            )
+            fig.add_trace(ema_trend_trace, row=1, col=1)
     
     # Volume bars - explicitly bind to row 2 subplot
     if 'Volume' in df_copy.columns:

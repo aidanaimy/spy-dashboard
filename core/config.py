@@ -20,17 +20,19 @@ GAP_LARGE_THRESHOLD = 0.01   # 1.0%
 # Range thresholds (as percentage of open)
 RANGE_LOW_THRESHOLD = 0.005   # 0.5%
 RANGE_NORMAL_THRESHOLD = 0.015  # 1.5%
-RANGE_HIGH_THRESHOLD = 0.015   # 1.5% (lowered from 2.5% to catch trending days earlier)
+RANGE_HIGH_THRESHOLD = 0.015   # 1.5% (1.0% test failed - reverted)
 
 # Intraday settings
 INTRADAY_INTERVAL = "5m"  # yfinance interval: 1m, 5m, 15m, etc.
 EMA_FAST = 9
 EMA_SLOW = 21
+EMA_TREND = 200           # Trend filter (Price > EMA200 = Bullish)
 VOLATILITY_LOOKBACK = 20  # bars for realized vol calculation
+VIX_MIN_THRESHOLD = 12    # Minimum VIX level to trade (avoid if below)
 
 # Trading session times (ET)
-SESSION_START = "09:45"
-SESSION_END = "15:30"
+SESSION_START = "09:30"
+SESSION_END = "15:55"
 
 # Time-of-day filters
 # Phase 1: Lunch Chop (11:45-13:30) - Reduced confidence or blocked
@@ -45,7 +47,7 @@ AFTERNOON_WAKEUP_END = "14:15"
 POWER_HOUR_START = "14:15" 
 
 # Block trades late in day
-BLOCK_TRADE_AFTER = "14:30"  # Block all NEW entries after this time (exits allowed)
+BLOCK_TRADE_AFTER = "15:30"  # Block all NEW entries after this time (exits allowed)
 
 # Early open caution
 REDUCE_CONFIDENCE_AFTER_OPEN_MINUTES = 10  # 9:45-9:55 reduced confidence

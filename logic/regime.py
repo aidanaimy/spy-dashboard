@@ -5,7 +5,7 @@ Daily regime analysis: trend, gap, range, and 0DTE permission logic.
 import pandas as pd
 import numpy as np
 from typing import Dict
-import config
+import core.config as config
 
 
 def calculate_moving_averages(df: pd.DataFrame, short: int = config.MA_SHORT, 
@@ -161,8 +161,8 @@ def get_0dte_permission(trend: str, gap_pct: float, range_pct: float, vix_level:
     """
     gap_abs = abs(gap_pct)
 
-    # HARD DECK: AVOID if VIX <= 15 (too calm for options)
-    if vix_level is not None and vix_level <= 15:
+    # HARD DECK: AVOID if VIX <= threshold (too calm for options)
+    if vix_level is not None and vix_level <= config.VIX_MIN_THRESHOLD:
         return {
             'status': 'AVOID',
             'reason': 'VIX too low - avoid 0DTE options (insufficient volatility)',

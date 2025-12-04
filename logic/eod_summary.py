@@ -8,7 +8,7 @@ Includes market stats, signal analysis, and AI-generated rationale.
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Dict
-from eod_tracker import get_tracker
+from logic.eod_tracker import get_tracker
 
 
 def generate_market_rationale(summary: Dict) -> str:

@@ -4,7 +4,7 @@ Rule-based signal generation combining regime and intraday analysis.
 
 from typing import Dict, Optional, TYPE_CHECKING
 from datetime import datetime
-import config
+import core.config as config
 from logic.time_filters import apply_time_filter
 from logic.chop_detector import detect_chop, apply_chop_filter
 
@@ -45,6 +45,11 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     confidence = "LOW"
     reasons = []
     
+    # Trend Filter (Price vs EMA200)
+    ema_trend = intraday.get('ema_trend', 0)
+    trend_bullish = price > ema_trend if ema_trend > 0 else True
+    trend_bearish = price < ema_trend if ema_trend > 0 else True
+
     # CALL bias conditions
     call_conditions = []
     if trend == "Bullish":
@@ -55,6 +60,12 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
         call_conditions.append("Price above VWAP")
     if return_5 > 0:
         call_conditions.append("Positive 5-bar return")
+    
+    # Enforce Trend Filter for CALLs
+    if not trend_bullish:
+        # If price is below EMA200, block CALLs (counter-trend)
+        # Unless it's a mean reversion play? No, stick to trend following for now.
+        pass 
     
     # PUT bias conditions
     put_conditions = []
@@ -71,14 +82,24 @@ def generate_signal(regime: Dict, intraday: Dict, current_time: datetime = None,
     call_score = len(call_conditions)
     put_score = len(put_conditions)
     
+    # Apply Trend Filter Hard Block
+    if not trend_bullish:
+        call_score = 0  # Block CALLs if Price < EMA200
+    if not trend_bearish:
+        put_score = 0   # Block PUTs if Price > EMA200
+
     if call_score >= 3:
         direction = "CALL"
         confidence = "HIGH" if call_score == 4 else "MEDIUM"
         reasons = call_conditions
+        if trend_bullish:
+            reasons.append("Aligned with Intraday Trend (Price > EMA200)")
     elif put_score >= 3:
         direction = "PUT"
         confidence = "HIGH" if put_score == 4 else "MEDIUM"
         reasons = put_conditions
+        if trend_bearish:
+            reasons.append("Aligned with Intraday Trend (Price < EMA200)")
     elif call_score >= 2:
         direction = "CALL"
         confidence = "LOW"
