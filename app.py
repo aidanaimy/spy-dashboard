@@ -643,17 +643,29 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
             if daily_df.empty or intraday_df.empty:
                 continue
             
-            # Get today's data
+            # Filter to market hours only (9:30 AM - 4:00 PM ET) FIRST
+            from datetime import time as dt_time
+            intraday_df['time_only'] = intraday_df.index.time
+            market_hours_df = intraday_df[
+                (intraday_df['time_only'] >= dt_time(9, 30)) & 
+                (intraday_df['time_only'] <= dt_time(16, 0))
+            ].copy()
+            
+            if market_hours_df.empty:
+                print(f"No market hours data for {ticker}, skipping...")
+                continue
+            
+            # Get today's data (use full intraday for range, market hours for open/close)
             today_data = {
                 'yesterday_close': daily_df.iloc[-2]['Close'] if len(daily_df) > 1 else daily_df.iloc[-1]['Close'],
-                'today_open': intraday_df['Open'].iloc[0],
+                'today_open': market_hours_df['Open'].iloc[0],  # 9:30 AM open
                 'today_high': intraday_df['High'].max(),
                 'today_low': intraday_df['Low'].min(),
             }
             
-            # Calculate stats
-            close_price = intraday_df['Close'].iloc[-1]
-            open_price = intraday_df['Open'].iloc[0]
+            # Calculate stats using market hours data
+            close_price = market_hours_df['Close'].iloc[-1]
+            open_price = market_hours_df['Open'].iloc[0]  # First bar of market hours (9:30 AM)
             pct_change = ((close_price - open_price) / open_price) * 100
             dollar_change = close_price - open_price
             
@@ -664,7 +676,7 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
             range_status = "✅" if range_pct > range_threshold else "⚠️"
             
             # Volume
-            volume = intraday_df['Volume'].sum()
+            volume = market_hours_df['Volume'].sum()  # Use market hours volume
             volume_str = f"{volume/1e6:.1f}M" if volume > 1e6 else f"{volume/1e3:.0f}K"
             
             # Determine trend
@@ -678,25 +690,32 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
             gap_info = calculate_gap(today_data['yesterday_close'], today_data['today_open'])
             range_info = calculate_range(today_data['today_open'], today_data['today_high'], today_data['today_low'])
             
-            # Get VIX and IV
+            # Get VIX and IV (use same method as dashboard)
             try:
                 from data.iv_fetcher import get_cached_iv_context
-                iv_context = get_cached_iv_context(ticker, open_price)
-                vix_level = iv_context.get('vix_level', 0)
-                atm_iv = iv_context.get('atm_iv', 0)
-                iv_range_low = iv_context.get('iv_range', {}).get('low', 0)
-                iv_range_high = iv_context.get('iv_range', {}).get('high', 0)
-            except:
+                # Use close price for IV context (more stable than open)
+                iv_context = get_cached_iv_context(ticker, close_price)
+                vix_level = iv_context.get('vix_level', None)
+                atm_iv = iv_context.get('atm_iv', None)
+                
+                # If we got None or 0, log it
+                if vix_level is None or vix_level == 0:
+                    print(f"⚠️ Warning: VIX data unavailable for {ticker}")
+                    vix_level = 0
+                if atm_iv is None or atm_iv == 0:
+                    print(f"⚠️ Warning: ATM IV data unavailable for {ticker}")
+                    atm_iv = 0
+                    
+            except Exception as e:
+                print(f"❌ Error fetching IV for {ticker}: {e}")
                 vix_level = 0
                 atm_iv = 0
-                iv_range_low = 0
-                iv_range_high = 0
             
             permission = get_0dte_permission(
                 trend_info['trend'],
                 gap_info['gap_pct'],
                 range_info['range_pct'],
-                vix_level
+                vix_level if vix_level > 0 else None  # Pass None if VIX unavailable
             )
             
             # Format emoji
