@@ -666,6 +666,11 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
             # Calculate stats using market hours data
             close_price = market_hours_df['Close'].iloc[-1]
             open_price = market_hours_df['Open'].iloc[0]  # First bar of market hours (9:30 AM)
+            
+            # Debug: Log the actual open time and price
+            open_time = market_hours_df.index[0]
+            print(f"📊 {ticker} - Open time: {open_time}, Open price: ${open_price:.2f}, Close: ${close_price:.2f}")
+            
             pct_change = ((close_price - open_price) / open_price) * 100
             dollar_change = close_price - open_price
             
@@ -690,26 +695,38 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
             gap_info = calculate_gap(today_data['yesterday_close'], today_data['today_open'])
             range_info = calculate_range(today_data['today_open'], today_data['today_high'], today_data['today_low'])
             
-            # Get VIX and IV (use same method as dashboard)
-            try:
-                from data.iv_fetcher import get_cached_iv_context
-                # Use close price for IV context (more stable than open)
-                iv_context = get_cached_iv_context(ticker, close_price)
-                vix_level = iv_context.get('vix_level', None)
-                atm_iv = iv_context.get('atm_iv', None)
-                
-                # If we got None or 0, log it
-                if vix_level is None or vix_level == 0:
-                    print(f"⚠️ Warning: VIX data unavailable for {ticker}")
-                    vix_level = 0
-                if atm_iv is None or atm_iv == 0:
-                    print(f"⚠️ Warning: ATM IV data unavailable for {ticker}")
-                    atm_iv = 0
+            # Get VIX and IV - use file-based cache of last known values
+            iv_cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", f"iv_cache_{ticker}_{today}.json")
+            vix_level = 0
+            atm_iv = 0
+            
+            # Try to read from cache file first
+            if os.path.exists(iv_cache_file):
+                try:
+                    import json
+                    with open(iv_cache_file, 'r') as f:
+                        cached_iv = json.load(f)
+                        vix_level = cached_iv.get('vix_level', 0)
+                        atm_iv = cached_iv.get('atm_iv', 0)
+                        print(f"✅ Using cached IV for {ticker}: VIX={vix_level:.1f}, ATM IV={atm_iv:.1f}%")
+                except Exception as e:
+                    print(f"⚠️ Error reading IV cache for {ticker}: {e}")
+            
+            # If no cache or cache is empty, try to fetch fresh
+            if vix_level == 0 or atm_iv == 0:
+                try:
+                    from data.iv_fetcher import get_cached_iv_context
+                    iv_context = get_cached_iv_context(ticker, close_price)
+                    vix_level = iv_context.get('vix_level', 0)
+                    atm_iv = iv_context.get('atm_iv', 0)
                     
-            except Exception as e:
-                print(f"❌ Error fetching IV for {ticker}: {e}")
-                vix_level = 0
-                atm_iv = 0
+                    if vix_level > 0 and atm_iv > 0:
+                        print(f"✅ Fetched fresh IV for {ticker}: VIX={vix_level:.1f}, ATM IV={atm_iv:.1f}%")
+                    else:
+                        print(f"⚠️ No IV data available for {ticker} (after hours?)")
+                        
+                except Exception as e:
+                    print(f"❌ Error fetching IV for {ticker}: {e}")
             
             permission = get_0dte_permission(
                 trend_info['trend'],
@@ -1312,6 +1329,19 @@ def render_dashboard(active_ticker: str = 'SPY'):
             try:
                 iv_context = get_cached_iv_context(active_ticker, intraday_df.iloc[0]['Open'])
                 vix_level = iv_context.get('vix_level')
+                
+                # Save IV to cache file for EOD summary (if we got valid data)
+                if vix_level and vix_level > 0:
+                    atm_iv = iv_context.get('atm_iv', 0)
+                    today_str = current_time.date().isoformat()
+                    iv_cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", f"iv_cache_{active_ticker}_{today_str}.json")
+                    try:
+                        import json
+                        with open(iv_cache_file, 'w') as f:
+                            json.dump({'vix_level': vix_level, 'atm_iv': atm_iv}, f)
+                    except Exception as e:
+                        pass  # Silent fail, not critical
+                        
             except Exception:
                 iv_context = {}
                 vix_level = None
