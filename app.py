@@ -766,15 +766,68 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
     if not fields:
         return
 
-    # 4. Build Embed
+    # 4. Build Premium Embed with Insights
+    # Calculate aggregate stats for market context
+    total_volume = sum([float(f['value'].split('Volume:** ')[1].split('\n')[0].replace('M', '000000').replace('K', '000')) for f in fields if 'Volume' in f['value']])
+    avg_change = sum([float(f['value'].split('(')[1].split('%')[0]) for f in fields]) / len(fields)
+    
+    # Market sentiment
+    if avg_change > 0.5:
+        sentiment = "🟢 **BULLISH** - Broad market strength"
+    elif avg_change < -0.5:
+        sentiment = "🔴 **BEARISH** - Broad market weakness"
+    else:
+        sentiment = "⚪ **NEUTRAL** - Mixed/choppy conditions"
+    
+    # Trading quality assessment
+    favorable_count = sum([1 for f in fields if 'FAVORABLE ✅' in f['value']])
+    if favorable_count == len(fields):
+        quality = "🎯 **EXCELLENT** - All tickers favorable for 0DTE"
+    elif favorable_count > 0:
+        quality = "⚠️ **MIXED** - Selective opportunities"
+    else:
+        quality = "🚫 **POOR** - Avoid 0DTE trading"
+    
     embed = {
-        "title": f"🏁 End of Day Summary - {today}",
-        "description": "Daily performance wrap-up for tracked tickers.",
-        "color": 0x2b2d31,  # Dark grey
-        "fields": fields,
+        "title": "🏁 End of Day Market Summary",
+        "description": f"**{today}** • Automated Report",
+        "color": 0x3498db,  # Premium blue
+        "fields": [
+            {
+                "name": "📊 Market Sentiment",
+                "value": sentiment,
+                "inline": False
+            },
+            {
+                "name": "🎯 0DTE Trading Quality",
+                "value": quality,
+                "inline": False
+            },
+            {
+                "name": "\u200b",  # Spacer
+                "value": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "inline": False
+            }
+        ] + fields + [
+            {
+                "name": "\u200b",  # Spacer
+                "value": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "inline": False
+            },
+            {
+                "name": "💡 Key Takeaways",
+                "value": (
+                    f"• **Average Move:** {avg_change:+.2f}%\n"
+                    f"• **Favorable Tickers:** {favorable_count}/{len(fields)}\n"
+                    f"• **Market Quality:** {'High volatility' if any('✅' in f['value'] for f in fields) else 'Low volatility/choppy'}"
+                ),
+                "inline": False
+            }
+        ],
         "footer": {
-            "text": "TradeV3.5 Automated Report"
-        }
+            "text": "TradeV3.5 • Powered by Advanced Analytics"
+        },
+        "timestamp": datetime.now(ZoneInfo("America/New_York")).isoformat()
     }
     
     
@@ -1650,7 +1703,7 @@ def render_dashboard(active_ticker: str = 'SPY'):
             margin: 2rem 0 1rem 0;
             padding: 0;
             letter-spacing: -0.01em;
-        ">Intraday SPY Analysis</h2>
+        ">Intraday Analysis</h2>
     """, unsafe_allow_html=True)
     
     col_left, col_right = st.columns([3, 1.3], gap="large")
