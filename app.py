@@ -663,13 +663,17 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
                 'today_low': intraday_df['Low'].min(),
             }
             
-            # Calculate stats using market hours data
+            # Calculate stats - use daily open (official opening auction price)
+            # The intraday first bar's open can differ from the official market open
             close_price = market_hours_df['Close'].iloc[-1]
-            open_price = market_hours_df['Open'].iloc[0]  # First bar of market hours (9:30 AM)
             
-            # Debug: Log the actual open time and price
+            # Get today's official open from daily data (last row)
+            open_price = daily_df.iloc[-1]['Open']
+            
+            # Debug: Log the actual prices
+            intraday_open = market_hours_df['Open'].iloc[0]
             open_time = market_hours_df.index[0]
-            print(f"📊 {ticker} - Open time: {open_time}, Open price: ${open_price:.2f}, Close: ${close_price:.2f}")
+            print(f"📊 {ticker} - Daily open: ${open_price:.2f}, Intraday first bar open: ${intraday_open:.2f}, Close: ${close_price:.2f}")
             
             pct_change = ((close_price - open_price) / open_price) * 100
             dollar_change = close_price - open_price
