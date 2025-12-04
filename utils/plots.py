@@ -276,7 +276,7 @@ def plot_intraday_candlestick(df: pd.DataFrame, vwap: Optional[pd.Series] = None
     
     # Update layout with ET timezone formatting
     fig.update_layout(
-        title='SPY Intraday Chart',
+        title='Intraday Chart',
         height=700,
         hovermode='x unified',
         template='plotly_dark',
