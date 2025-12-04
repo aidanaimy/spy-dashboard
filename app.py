@@ -781,12 +781,17 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
     
     # Trading quality assessment
     favorable_count = sum([1 for f in fields if 'FAVORABLE ✅' in f['value']])
+    caution_count = sum([1 for f in fields if 'CAUTION ⚠️' in f['value']])
+    avoid_count = sum([1 for f in fields if 'AVOID 🚫' in f['value']])
+    
     if favorable_count == len(fields):
-        quality = "🎯 **EXCELLENT** - All tickers favorable for 0DTE"
+        quality = "🎯 **FAVORABLE** - All tickers show strong directional setups"
+    elif avoid_count == len(fields):
+        quality = "🚫 **AVOID** - All tickers showing poor conditions"
     elif favorable_count > 0:
-        quality = "⚠️ **MIXED** - Selective opportunities"
+        quality = f"⚠️ **CAUTION** - Mixed conditions ({favorable_count} favorable, {caution_count} caution, {avoid_count} avoid)"
     else:
-        quality = "🚫 **POOR** - Avoid 0DTE trading"
+        quality = "⚠️ **CAUTION** - No favorable setups today"
     
     embed = {
         "title": "🏁 End of Day Market Summary",
