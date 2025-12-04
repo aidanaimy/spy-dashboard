@@ -579,10 +579,31 @@ def maybe_notify_signal(signal: Dict[str, str], regime: Dict, intraday: Dict,
     }
 
 
-@st.cache_resource
-def get_eod_status() -> Dict[str, bool]:
-    """Track if EOD report has been sent for today."""
+def get_eod_status() -> Dict:
+    """Track if EOD report has been sent for today using file-based persistence."""
+    status_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "eod_summary_status.json")
+    
+    # Ensure data directory exists
+    os.makedirs(os.path.dirname(status_file), exist_ok=True)
+    
+    # Read existing status
+    if os.path.exists(status_file):
+        try:
+            import json
+            with open(status_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    
     return {"sent": False, "date": None}
+
+
+def update_eod_status(sent: bool, date: str):
+    """Update EOD status file."""
+    status_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "eod_summary_status.json")
+    import json
+    with open(status_file, 'w') as f:
+        json.dump({"sent": sent, "date": date}, f)
 
 
 def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> None:
@@ -595,11 +616,11 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
     if not force and current_time < market_close:
         return
 
-    # 2. Check if already sent today
+    # 2. Check if already sent today (file-based, works across all sessions)
     status = get_eod_status()
-    today = current_time.date()
+    today = current_time.date().isoformat()
     
-    if status["sent"] and status["date"] == today:
+    if status.get("sent") and status.get("date") == today:
         return
         
     # 3. Generate Report
@@ -621,25 +642,82 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
             
             if daily_df.empty or intraday_df.empty:
                 continue
-                
+            
+            # Get today's data
+            today_data = {
+                'yesterday_close': daily_df.iloc[-2]['Close'] if len(daily_df) > 1 else daily_df.iloc[-1]['Close'],
+                'today_open': intraday_df['Open'].iloc[0],
+                'today_high': intraday_df['High'].max(),
+                'today_low': intraday_df['Low'].min(),
+            }
+            
             # Calculate stats
             close_price = intraday_df['Close'].iloc[-1]
             open_price = intraday_df['Open'].iloc[0]
             pct_change = ((close_price - open_price) / open_price) * 100
+            dollar_change = close_price - open_price
+            
+            # Range calculation
+            range_val = today_data['today_high'] - today_data['today_low']
+            range_pct = (range_val / open_price) * 100
+            range_threshold = config.RANGE_HIGH_THRESHOLD * 100
+            range_status = "✅" if range_pct > range_threshold else "⚠️"
+            
+            # Volume
+            volume = intraday_df['Volume'].sum()
+            volume_str = f"{volume/1e6:.1f}M" if volume > 1e6 else f"{volume/1e3:.0f}K"
             
             # Determine trend
-            from logic.regime import calculate_moving_averages, get_trend
+            from logic.regime import calculate_moving_averages, get_trend, get_0dte_permission
             mas = calculate_moving_averages(daily_df)
             trend_info = get_trend(close_price, mas['ma_short'], mas['ma_long'])
             trend = trend_info.get('trend', 'Neutral')
             
-            # Format field
-            emoji = "🟢" if pct_change > 0 else "🔴" if pct_change < 0 else "⚪"
+            # Get 0DTE permission
+            from logic.regime import calculate_gap, calculate_range
+            gap_info = calculate_gap(today_data['yesterday_close'], today_data['today_open'])
+            range_info = calculate_range(today_data['today_open'], today_data['today_high'], today_data['today_low'])
+            
+            # Get VIX and IV
+            try:
+                from data.iv_fetcher import get_cached_iv_context
+                iv_context = get_cached_iv_context(ticker, open_price)
+                vix_level = iv_context.get('vix_level', 0)
+                atm_iv = iv_context.get('atm_iv', 0)
+                iv_range_low = iv_context.get('iv_range', {}).get('low', 0)
+                iv_range_high = iv_context.get('iv_range', {}).get('high', 0)
+            except:
+                vix_level = 0
+                atm_iv = 0
+                iv_range_low = 0
+                iv_range_high = 0
+            
+            permission = get_0dte_permission(
+                trend_info['trend'],
+                gap_info['gap_pct'],
+                range_info['range_pct'],
+                vix_level
+            )
+            
+            # Format emoji
+            change_emoji = "🟢" if pct_change > 0 else "🔴" if pct_change < 0 else "⚪"
+            permission_emoji = "✅" if permission['status'] == "FAVORABLE" else "⚠️" if permission['status'] == "CAUTION" else "🚫"
+            
+            # Build detailed field
+            field_value = (
+                f"**Open:** ${open_price:.2f} → **Close:** ${close_price:.2f}\n"
+                f"**Change:** {change_emoji} ${dollar_change:+.2f} ({pct_change:+.2f}%)\n"
+                f"**Range:** ${today_data['today_low']:.2f} - ${today_data['today_high']:.2f} ({range_pct:.2f}% {range_status})\n"
+                f"**Volume:** {volume_str}\n"
+                f"**0DTE Permission:** {permission['status']} {permission_emoji}\n"
+                f"**VIX:** {vix_level:.1f}\n"
+                f"**ATM IV:** {atm_iv:.1f}%"
+            )
             
             fields.append({
-                "name": f"{ticker} Performance",
-                "value": f"**Close:** ${close_price:.2f}\n**Change:** {emoji} {pct_change:+.2f}%\n**Trend:** {trend}",
-                "inline": True
+                "name": f"📈 {ticker} Performance",
+                "value": field_value,
+                "inline": False
             })
             
         except Exception as e:
@@ -659,10 +737,10 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
         }
     }
     
+    
     # 5. Send and Update Status
     send_discord_notification(embed=embed)
-    status["sent"] = True
-    status["date"] = today
+    update_eod_status(sent=True, date=today)
     print("✅ EOD Summary sent!")
 
 
