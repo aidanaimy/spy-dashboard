@@ -728,7 +728,7 @@ def check_and_send_eod_summary(current_time: datetime, force: bool = False) -> N
 
     # 4. Build Embed
     embed = {
-        "title": f"🏁 End of Day Summary - {today.strftime('%Y-%m-%d')}",
+        "title": f"🏁 End of Day Summary - {today}",
         "description": "Daily performance wrap-up for tracked tickers.",
         "color": 0x2b2d31,  # Dark grey
         "fields": fields,
