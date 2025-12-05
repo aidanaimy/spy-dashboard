@@ -1,15 +1,17 @@
-# SPY 0DTE Trading System (v3.5)
+# Multi-Ticker 0DTE Trading System (v3.5)
 
-This repo contains a Streamlit-based trading dashboard for SPY 0DTE options with rule-based signal generation, real-time Discord notifications, backtesting engine, and ML optimization tools.
+This repo contains a Streamlit-based trading dashboard for 0DTE options (SPY + IWM) with rule-based signal generation, real-time Discord notifications, multi-ticker backtesting engine, and ML optimization tools.
 
 **Version 3.5** includes:
+- 🎯 **Multi-Ticker Support** - SPY and IWM with independent signal tracking
 - 🚀 **Wide Stops Breakthrough** (TP: 80%, SL: 40%) - eliminates overtrading, +77% returns
-- 🎯 **High-confidence 0DTE signals** with FAVORABLE-day filtering
-- ⏰ **Optimized time-of-day filters** (power hour boost, lunch chop block)
-- 🔔 **Discord webhook notifications** with @everyone pings for HIGH signals
-- 📊 **Options backtesting** with Black-Scholes pricing
-- 🤖 **ML optimization tools** for feature selection and parameter tuning
-- 🚫 **Re-entry cooldown** to prevent overtrading after stop losses
+- 📊 **Enhanced Trade Log** - Professional UI with expandable cards, daily P/L summaries, and visual grouping
+- 🔔 **Smart Discord Notifications** - Real-time signal alerts + automated EOD market reports
+- ⏰ **Optimized Time-of-Day Filters** (power hour boost, lunch chop block)
+- 🎯 **High-Confidence 0DTE Signals** with FAVORABLE-day filtering
+- 📈 **Multi-Ticker Backtesting** with Black-Scholes pricing
+- 🤖 **ML Optimization Tools** for feature selection and parameter tuning
+- 🚫 **Re-Entry Cooldown** to prevent overtrading after stop losses
 
 ---
 
@@ -27,15 +29,15 @@ You only need an Alpaca data key (free IEX feed). If Alpaca isn’t reachable, t
 ## 📁 Directory Structure
 
 ```
-tradev3/
-├─ app.py                    # Main Streamlit dashboard
+tradev3.5/
+├─ app.py                    # Main Streamlit dashboard (multi-ticker)
 ├─ config.py                 # All tunable parameters
 ├─ requirements.txt          # Python dependencies
-├─ run_full_backtest.py      # Standalone backtest script
 │
 ├─ data/                     # Data fetching clients
 │   ├─ alpaca_client.py      # Primary (Alpaca API)
 │   ├─ yfinance_client.py    # Fallback (yfinance)
+│   ├─ iv_fetcher.py         # IV and VIX data fetching
 │   └─ trade_journal.csv     # Manual trade log
 │
 ├─ logic/                    # Core trading logic
@@ -45,17 +47,23 @@ tradev3/
 │   ├─ time_filters.py       # Time-of-day filtering
 │   ├─ iv.py                 # ATM IV + VIX context
 │   ├─ signals.py            # Signal generation (CALL/PUT/NONE)
-│   └─ options.py            # Black-Scholes option pricing
+│   ├─ options.py            # Black-Scholes option pricing
+│   ├─ eod_tracker.py        # EOD signal tracking
+│   └─ eod_summary.py        # EOD Discord report generation
 │
 ├─ backtest/                 # Backtesting engine
 │   └─ backtest_engine.py    # Historical simulation
+│
+├─ scripts/                  # Standalone scripts
+│   ├─ run_full_backtest.py      # Single-ticker backtest
+│   └─ run_multi_ticker_backtest.py  # Multi-ticker backtest
 │
 ├─ utils/                    # Utilities
 │   ├─ plots.py              # Plotly charts
 │   └─ journal.py            # Trade logging
 │
 ├─ tests/                    # Test scripts
-│   ├─ test_discord.py       # Discord webhook test
+│   ├─ test_discord_v2.py    # Discord webhook + EOD test
 │   ├─ test_alpaca.py        # Alpaca API test
 │   └─ test_signal_notification.py
 │
@@ -65,38 +73,45 @@ tradev3/
 │   ├─ feature_selection_optimizer.py
 │   └─ backtest_results_*.csv
 │
-└─ changelog/                # Version history
-    ├─ V3.md                 # Latest changes
-    ├─ V2.5.md
-    └─ V2.md
+└─ docs/                     # Documentation
+    └─ EOD_SUMMARY.md        # EOD report documentation
 ```
 
 ### Data Walkthrough
 1. **Daily + Intraday**  
    `app.py` fetches daily bars (cached 5 min) and 5-min intraday bars (cached 30 s) from Alpaca’s IEX feed. Outside trading hours, it reuses the last available session but clearly labels that state.
-2. **Regime Engine** (`logic/regime.py`)  
+2. **Multi-Ticker Support**  
+   Dashboard supports SPY and IWM with independent signal tracking. Switch between tickers using the buttons at the top of the dashboard.
+3. **Regime Engine** (`logic/regime.py`)  
    - Computes 20D/50D MAs, classifies trend, measures gap/range, sets the 🚦 0DTE permission (RED/YELLOW/GREEN).
-3. **Intraday Engine** (`logic/intraday.py`)  
+4. **Intraday Engine** (`logic/intraday.py`)  
    - Generates VWAP, 9/21 EMA, 1-/5-bar returns, realized vol, distance from VWAP, micro trend (Up/Down/Neutral).
-4. **Signal Engine** (`logic/signals.py`)  
+5. **Signal Engine** (`logic/signals.py`)  
    - Base rules: CALL if trend bullish + micro trend up + price>VWAP + positive 5-bar; PUT for the symmetric case; NONE otherwise.
    - Filters: chop detector, time-of-day, **0DTE permission**, and **IV context (ATM IV + VIX)** now auto-adjust confidence.
-5. **Presentation** (`app.py`)  
+6. **Presentation** (`app.py`)  
    - Regime tiles, volatility card, candlestick plot, stats panel, signal card, rationale panel.
-6. **Trade Journal**  
-   - Manual trade logging with date/time, direction, bias, size, prices, notes. Auto-tagged “with system” or “against system.” Includes delete capability and P/L breakdowns.
-7. **Backtest**  
-   - Replays historical sessions using the identical signal stack. Trades 9:45–15:30 ET with configurable TP/SL (0.7% / 0.3%). Emits metrics + equity curve.
+7. **Trade Journal**  
+   - Professional trade log with expandable cards, daily P/L summaries, and visual grouping by date. Auto-tagged "with system" or "against system." Includes delete capability and comprehensive P/L breakdowns.
+8. **Backtest**  
+   - Replays historical sessions using the identical signal stack. Trades 9:45–15:30 ET with configurable TP/SL (0.8% / 0.4%). Emits metrics + equity curve. Supports multi-ticker backtesting.
+9. **EOD Reports**  
+   - Automated end-of-day market summary sent to Discord at 4:05 PM ET. Includes SPY and IWM performance, 0DTE permission, VIX levels, and market insights.
 
 ---
 
 ## Usage Notes
 
-- **Live data**: Refreshes every 30 s. Free IEX feed only streams regular-session bars, so overnight the dashboard displays the last session. Morning of the next trading day it automatically switches once new bars arrive.
-- **Signal behavior**: The CALL/PUT/NONE direction can flip if conditions reverse. Confidence is capped or boosted by chop detection, time-of-day windows, 0DTE permission, and IV context. Only act on MED/HIGH signals unless you deliberately want to trade low-confidence scenarios.
-- **Backtest range**: Current engine fetches intraday bars day-by-day; reliable up to ~60 trading days per run. For longer periods, split into chunks or extend the engine to download bulk data.
-- **No broker link**: The app never sends orders. You trade manually in your broker and log the fills.
-- **Files stored locally**: Trade log lives at `data/trade_journal.csv`. Delete it if you want a fresh slate.
+- **Multi-Ticker Dashboard**: Use the SPY and IWM buttons at the top to switch between tickers. Each ticker has independent signal tracking and analysis.
+- **Live Data**: Refreshes every 30 s. Free IEX feed only streams regular-session bars, so overnight the dashboard displays the last session. Morning of the next trading day it automatically switches once new bars arrive.
+- **Signal Behavior**: The CALL/PUT/NONE direction can flip if conditions reverse. Confidence is capped or boosted by chop detection, time-of-day windows, 0DTE permission, and IV context. Only act on MED/HIGH signals unless you deliberately want to trade low-confidence scenarios.
+- **Discord Notifications**: 
+  - Real-time signal alerts for HIGH confidence + FAVORABLE/CAUTION signals
+  - Automated EOD market summary at 4:05 PM ET with SPY and IWM performance, 0DTE environment assessment, and trading insights
+  - @everyone pings only for actionable (HIGH + FAVORABLE) signals
+- **Backtest Range**: Current engine fetches intraday bars day-by-day; reliable up to ~60 trading days per run. For longer periods, split into chunks or extend the engine to download bulk data.
+- **No Broker Link**: The app never sends orders. You trade manually in your broker and log the fills.
+- **Files Stored Locally**: Trade log lives at `data/trade_journal.csv`. Delete it if you want a fresh slate.
 
 ---
 
@@ -118,8 +133,8 @@ Update values there to tune the system; the Streamlit app will respect your chan
 Run tests to verify system components:
 
 ```bash
-# Test Discord notifications
-python tests/test_discord.py
+# Test Discord notifications and EOD reports
+python tests/test_discord_v2.py
 
 # Test Alpaca API
 python tests/test_alpaca.py
@@ -128,7 +143,7 @@ python tests/test_alpaca.py
 python tests/test_signal_notification.py
 ```
 
-See `tests/README.md` for details.
+See individual test files for details.
 
 ---
 

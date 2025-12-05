@@ -1533,19 +1533,8 @@ def render_dashboard(active_ticker: str = 'SPY'):
                     reason=signal.get('reason', '')
                 )
             
-            # Check if it's 4 PM ET and send EOD summary (once per day)
-            if current_time.hour == 16 and current_time.minute < 5:  # 4:00-4:05 PM window
-                today_str = current_time.date().isoformat()
-                tracker = get_tracker()
-                
-                # Check persistent tracker instead of session state to prevent duplicates across sessions
-                if not tracker.was_summary_sent(today_str):
-                    try:
-                        send_eod_summary()
-                        tracker.mark_summary_sent(today_str)
-                        st.success("📊 EOD Summary sent to Discord!")
-                    except Exception as e:
-                        st.warning(f"⚠️ Failed to send EOD summary: {e}")
+            # Note: EOD summary is now sent via check_and_send_eod_summary() in sidebar (line 990)
+            # which sends a combined SPY + IWM report at 4:05 PM ET
             
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
@@ -2519,10 +2508,11 @@ def render_backtest():
                 
                 # Enhanced styling for summary row (green/red based on P/L)
                 summary_bg_color = '#d1fae5' if daily_pnl > 0 else '#fee2e2'  # Light green or light red
+                summary_text_color = '#065f46' if daily_pnl > 0 else '#991b1b'  # Dark green or dark red for text
                 
                 def style_summary_row(row):
                     if row.name == len(display_with_summary) - 1:  # Last row (summary)
-                        return [f'background-color: {summary_bg_color}; font-weight: 700; border-top: 2px solid #9ca3af'] * len(row)
+                        return [f'background-color: {summary_bg_color}; color: {summary_text_color}; font-weight: 700; border-top: 2px solid #9ca3af'] * len(row)
                     return [''] * len(row)
                 
                 # Display table with integrated summary
@@ -2544,49 +2534,71 @@ def render_backtest():
                         return_pct = trade['return_pct']
                         pnl_color = '#059669' if pnl > 0 else '#dc2626'
                         
-                        # Use Streamlit container with custom styling
-                        with st.container():
-                            st.markdown(f"""
-                                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin: 15px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #f3f4f6;">
-                                        <div>
-                                            <div style="font-size: 18px; font-weight: 600; color: #111827;">
-                                                {trade['direction']} {trade.get('ticker', 'SPY')}
-                                            </div>
-                                            <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">
-                                                {trade['entry_time'].strftime('%I:%M %p')} → {trade['exit_time'].strftime('%I:%M %p')} ({trade['duration_min']:.0f} min)
-                                            </div>
+                        # Compact dark card - single row layout
+                        st.markdown(f"""
+                            <div style="background: #1f2937; border-radius: 8px; padding: 12px 16px; margin: 8px 0; border-left: 4px solid {pnl_color};">
+                                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr; gap: 12px; align-items: center;">
+                                    <!-- Trade Info -->
+                                    <div>
+                                        <div style="color: white; font-size: 15px; font-weight: 600;">
+                                            {trade['direction']} {trade.get('ticker', 'SPY')}
                                         </div>
-                                        <div style="text-align: right;">
-                                            <div style="font-size: 32px; font-weight: 700; color: {pnl_color};">
-                                                ${pnl:+.2f}
-                                            </div>
-                                            <div style="font-size: 24px; font-weight: 600; color: {pnl_color};">
-                                                {return_pct:+.2f}%
-                                            </div>
+                                        <div style="color: #9ca3af; font-size: 12px; margin-top: 2px;">
+                                            {trade['entry_time'].strftime('%H:%M')} → {trade['exit_time'].strftime('%H:%M')} ({trade['duration_min']:.0f}m)
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- P/L -->
+                                    <div style="text-align: center;">
+                                        <div style="color: #9ca3af; font-size: 10px; text-transform: uppercase;">P/L</div>
+                                        <div style="color: {pnl_color}; font-size: 16px; font-weight: 700; margin-top: 2px;">
+                                            ${pnl:+.2f}
+                                        </div>
+                                        <div style="color: {pnl_color}; font-size: 12px; font-weight: 600;">
+                                            {return_pct:+.2f}%
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Entry -->
+                                    <div style="text-align: center;">
+                                        <div style="color: #9ca3af; font-size: 10px; text-transform: uppercase;">Entry</div>
+                                        <div style="color: #e5e7eb; font-size: 14px; font-weight: 600; margin-top: 2px;">
+                                            ${trade['entry_price']:.2f}
+                                        </div>
+                                        <div style="color: #6b7280; font-size: 11px;">
+                                            ${trade.get('strike', trade['entry_price']):.2f}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Exit -->
+                                    <div style="text-align: center;">
+                                        <div style="color: #9ca3af; font-size: 10px; text-transform: uppercase;">Exit</div>
+                                        <div style="color: #e5e7eb; font-size: 14px; font-weight: 600; margin-top: 2px;">
+                                            ${trade['exit_price']:.2f}
+                                        </div>
+                                        <div style="color: #6b7280; font-size: 11px;">
+                                            {trade['exit_reason']}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Quality -->
+                                    <div style="text-align: center;">
+                                        <div style="color: #9ca3af; font-size: 10px; text-transform: uppercase;">Quality</div>
+                                        <div style="color: #e5e7eb; font-size: 13px; font-weight: 600; margin-top: 2px;">
+                                            {trade.get('confidence', 'N/A')}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Permission -->
+                                    <div style="text-align: center;">
+                                        <div style="color: #9ca3af; font-size: 10px; text-transform: uppercase;">0DTE</div>
+                                        <div style="color: #e5e7eb; font-size: 13px; font-weight: 600; margin-top: 2px;">
+                                            {trade.get('0dte_permission', 'N/A')}
                                         </div>
                                     </div>
                                 </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # Use columns for metrics
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Entry Price", f"${trade['entry_price']:.2f}")
-                            with col2:
-                                st.metric("Exit Price", f"${trade['exit_price']:.2f}")
-                            with col3:
-                                st.metric("Exit Reason", trade['exit_reason'])
-                            
-                            col4, col5, col6 = st.columns(3)
-                            with col4:
-                                st.metric("Strike", f"${trade.get('strike', trade['entry_price']):.2f}")
-                            with col5:
-                                st.metric("Confidence", trade.get('confidence', 'N/A'))
-                            with col6:
-                                st.metric("0DTE Permission", trade.get('0dte_permission', 'N/A'))
-                            
-                            st.markdown("---")
+                            </div>
+                        """, unsafe_allow_html=True)
             
         else:
             st.info("No trades generated in this period.")
