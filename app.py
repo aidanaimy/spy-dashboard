@@ -2339,7 +2339,7 @@ def render_backtest():
             st.markdown("""
                 <style>
                 .trade-date-header {
-                    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
+                    background: linear-gradient(90deg, #4b5563 0%, #6b7280 100%);
                     color: white;
                     padding: 12px 20px;
                     border-radius: 8px;
@@ -2349,19 +2349,19 @@ def render_backtest():
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 .daily-summary {
-                    background: #f8fafc;
-                    border-left: 4px solid #3b82f6;
+                    background: #f9fafb;
+                    border-left: 4px solid #9ca3af;
                     padding: 10px 20px;
                     margin: 10px 0;
                     border-radius: 4px;
                     font-size: 14px;
                 }
                 .daily-summary-positive {
-                    border-left-color: #10b981;
+                    border-left-color: #059669;
                     background: #f0fdf4;
                 }
                 .daily-summary-negative {
-                    border-left-color: #ef4444;
+                    border-left-color: #dc2626;
                     background: #fef2f2;
                 }
                 .trade-card {
@@ -2478,13 +2478,13 @@ def render_backtest():
                 def style_pnl(val):
                     if pd.isna(val):
                         return ''
-                    color = '#10b981' if val > 0 else '#ef4444'
+                    color = '#059669' if val > 0 else '#dc2626'
                     return f'color: {color}; font-weight: 700; font-size: 16px'
                 
                 def style_return(val):
                     if pd.isna(val):
                         return ''
-                    color = '#10b981' if val > 0 else '#ef4444'
+                    color = '#059669' if val > 0 else '#dc2626'
                     return f'color: {color}; font-weight: 600'
                 
                 # Display table
@@ -2505,7 +2505,7 @@ def render_backtest():
                 daily_wr = (daily_wins / daily_trades * 100) if daily_trades > 0 else 0
                 
                 summary_class = 'daily-summary-positive' if daily_pnl > 0 else 'daily-summary-negative'
-                pnl_color = '#10b981' if daily_pnl > 0 else '#ef4444'
+                pnl_color = '#059669' if daily_pnl > 0 else '#dc2626'
                 
                 st.markdown(f"""
                     <div class="daily-summary {summary_class}">
@@ -2523,7 +2523,7 @@ def render_backtest():
                     for idx, trade in day_df.iterrows():
                         pnl = trade['pnl']
                         return_pct = trade['return_pct']
-                        pnl_color = '#10b981' if pnl > 0 else '#ef4444'
+                        pnl_color = '#059669' if pnl > 0 else '#dc2626'
                         
                         st.markdown(f"""
                             <div class="trade-card">
