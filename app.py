@@ -2487,36 +2487,53 @@ def render_backtest():
                     color = '#059669' if val > 0 else '#dc2626'
                     return f'color: {color}; font-weight: 600'
                 
-                # Display table
-                st.dataframe(
-                    final_df.style\
-                        .map(style_pnl, subset=['P/L'])\
-                        .map(style_return, subset=['Return %']),
-                    column_config=col_config,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=min(len(day_df) * 40 + 50, 400)
-                )
-                
-                # Daily summary
+                # Calculate daily summary stats
                 daily_pnl = day_df['pnl'].sum()
                 daily_trades = len(day_df)
                 daily_wins = len(day_df[day_df['pnl'] > 0])
                 daily_wr = (daily_wins / daily_trades * 100) if daily_trades > 0 else 0
-                
-                summary_class = 'daily-summary-positive' if daily_pnl > 0 else 'daily-summary-negative'
                 pnl_color = '#059669' if daily_pnl > 0 else '#dc2626'
                 
-                st.markdown(f"""
-                    <div class="daily-summary {summary_class}">
-                        <strong>Daily Summary:</strong> 
-                        {daily_trades} trade{'s' if daily_trades != 1 else ''} • 
-                        {daily_wins}W-{daily_trades - daily_wins}L ({daily_wr:.0f}% WR) • 
-                        <span style="color: {pnl_color}; font-weight: 700;">
-                            Net P/L: ${daily_pnl:+.2f}
-                        </span>
-                    </div>
-                """, unsafe_allow_html=True)
+                # Add summary row to dataframe
+                summary_row = pd.DataFrame([{
+                    'P/L': daily_pnl,
+                    'Return %': None,
+                    'Entry Time': f"{daily_trades} trades",
+                    'Exit Time': f"{daily_wins}W-{daily_trades - daily_wins}L",
+                    'Direction': f"{daily_wr:.0f}% WR",
+                    'Entry $': None,
+                    'Exit $': None,
+                    'Exit Reason': 'DAILY TOTAL',
+                    'Duration': None
+                }])
+                
+                # Add ticker column if present
+                if 'Ticker' in final_df.columns:
+                    summary_row['Ticker'] = ''
+                
+                # Reorder to match final_df columns
+                summary_row = summary_row[final_df.columns]
+                
+                # Combine with trades
+                display_with_summary = pd.concat([final_df, summary_row], ignore_index=True)
+                
+                # Enhanced styling for summary row
+                def style_summary_row(row):
+                    if row.name == len(display_with_summary) - 1:  # Last row (summary)
+                        return ['background-color: #f3f4f6; font-weight: 600; border-top: 2px solid #9ca3af'] * len(row)
+                    return [''] * len(row)
+                
+                # Display table with integrated summary
+                st.dataframe(
+                    display_with_summary.style\
+                        .map(style_pnl, subset=['P/L'])\
+                        .map(style_return, subset=['Return %'])\
+                        .apply(style_summary_row, axis=1),
+                    column_config=col_config,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=min(len(display_with_summary) * 40 + 50, 450)
+                )
                 
                 # Expandable trade cards
                 with st.expander("📊 View Detailed Trade Cards", expanded=False):
