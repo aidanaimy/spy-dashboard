@@ -2329,52 +2329,93 @@ def render_backtest():
             display_df['entry_time'] = pd.to_datetime(display_df['entry_time'])
             display_df['exit_time'] = pd.to_datetime(display_df['exit_time'])
             
-            # Select columns to display
-            base_cols = ['ticker', 'entry_time', 'direction', 'entry_price', 'exit_price', 'pnl', 'exit_reason']
+            # Calculate additional metrics
+            display_df['duration_min'] = (display_df['exit_time'] - display_df['entry_time']).dt.total_seconds() / 60
+            display_df['return_pct'] = ((display_df['exit_price'] - display_df['entry_price']) / display_df['entry_price'] * 100)
+            
+            # Format times for display
+            display_df['Entry Time'] = display_df['entry_time'].dt.strftime('%m/%d %H:%M')
+            display_df['Exit Time'] = display_df['exit_time'].dt.strftime('%H:%M')
+            
+            # Rename columns for better readability
+            column_mapping = {
+                'ticker': 'Ticker',
+                'direction': 'Side',
+                'confidence': 'Quality',
+                '0dte_permission': '0DTE',
+                'entry_price': 'Entry $',
+                'exit_price': 'Exit $',
+                'pnl': 'P/L',
+                'exit_reason': 'Exit',
+                'strike': 'Strike',
+                'duration_min': 'Duration',
+                'return_pct': 'Return %'
+            }
+            
+            # Select and rename columns
+            base_cols = ['Ticker', 'Entry Time', 'Exit Time', 'Side']
             
             # Add metadata columns if available
             meta_cols = []
             if 'confidence' in display_df.columns:
-                meta_cols.append('confidence')
+                display_df['Quality'] = display_df['confidence']
+                meta_cols.append('Quality')
             if '0dte_permission' in display_df.columns:
-                meta_cols.append('0dte_permission')
+                display_df['0DTE'] = display_df['0dte_permission']
+                meta_cols.append('0DTE')
             if 'strike' in display_df.columns:
-                meta_cols.append('strike')
+                display_df['Strike'] = display_df['strike']
+                meta_cols.append('Strike')
             
-            # Combine columns
-            final_cols = ['ticker'] + ['entry_time', 'direction'] + meta_cols + ['entry_price', 'exit_price', 'pnl', 'exit_reason']
+            # Add price and performance columns
+            perf_cols = ['Entry $', 'Exit $', 'P/L', 'Return %', 'Duration', 'Exit']
             
-            # Handle single ticker case (no ticker column if not multi-ticker)
-            if 'ticker' not in display_df.columns:
-                final_cols.remove('ticker')
-                
-            # Filter dataframe
+            # Rename existing columns
+            for old, new in column_mapping.items():
+                if old in display_df.columns and new in perf_cols:
+                    display_df[new] = display_df[old]
+            
+            # Combine all columns
+            final_cols = base_cols + meta_cols + perf_cols
+            
+            # Handle single ticker case
+            if 'ticker' not in trades_df.columns:
+                final_cols.remove('Ticker')
+            
+            # Filter to only existing columns
+            final_cols = [col for col in final_cols if col in display_df.columns]
             display_df = display_df[final_cols]
             
-            # Apply styling
+            # Apply styling with column configuration
+            column_config = {
+                'Ticker': st.column_config.TextColumn('Ticker', width='small'),
+                'Entry Time': st.column_config.TextColumn('Entry Time', width='medium'),
+                'Exit Time': st.column_config.TextColumn('Exit', width='small'),
+                'Side': st.column_config.TextColumn('Side', width='small'),
+                'Quality': st.column_config.TextColumn('Quality', width='small'),
+                '0DTE': st.column_config.TextColumn('0DTE', width='small'),
+                'Strike': st.column_config.NumberColumn('Strike', format='$%.2f', width='small'),
+                'Entry $': st.column_config.NumberColumn('Entry', format='$%.2f', width='small'),
+                'Exit $': st.column_config.NumberColumn('Exit', format='$%.2f', width='small'),
+                'P/L': st.column_config.NumberColumn('P/L', format='$%+.2f', width='small'),
+                'Return %': st.column_config.NumberColumn('Return', format='%+.2f%%', width='small'),
+                'Duration': st.column_config.NumberColumn('Duration (min)', format='%.0f', width='small'),
+                'Exit': st.column_config.TextColumn('Exit Reason', width='medium')
+            }
+            
+            # Color styling function
             def color_pnl(val):
+                if pd.isna(val):
+                    return ''
                 color = '#00FF00' if val > 0 else '#FF4444'
-                return f'color: {color}'
-
-            # Create styled dataframe
+                return f'color: {color}; font-weight: bold'
+            
+            # Display with enhanced styling
             st.dataframe(
-                display_df.style.map(color_pnl, subset=['pnl']).format({
-                    'entry_time': '{:%Y-%m-%d %H:%M}',
-                    'exit_time': '{:%Y-%m-%d %H:%M}',
-                    'entry_price': '${:.2f}',
-                    'exit_price': '${:.2f}',
-                    'pnl': '${:+.2f}',
-                    'strike': '${:.2f}'
-                }),
+                display_df.style.map(color_pnl, subset=['P/L', 'Return %']),
+                column_config=column_config,
                 use_container_width=True,
-                height=500,
-                column_config={
-                    "entry_time": st.column_config.DatetimeColumn("Entry", format="MM/DD HH:mm"),
-                    "exit_time": st.column_config.DatetimeColumn("Exit", format="MM/DD HH:mm"),
-                    "pnl": st.column_config.NumberColumn("P/L", format="$%.2f"),
-                    "confidence": st.column_config.TextColumn("Conf"),
-                    "0dte_permission": st.column_config.TextColumn("Perm"),
-                }
+                height=500
             )
         else:
             st.info("No trades generated in this period.")
