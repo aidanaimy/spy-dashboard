@@ -2322,101 +2322,263 @@ def render_backtest():
         st.subheader("📝 Trade Log")
         trades_df = agg['trades_df']
         if not trades_df.empty:
-            # Format for display
+            # Prepare data
             display_df = trades_df.copy()
-            
-            # Ensure datetime objects
             display_df['entry_time'] = pd.to_datetime(display_df['entry_time'])
             display_df['exit_time'] = pd.to_datetime(display_df['exit_time'])
+            display_df['date'] = display_df['entry_time'].dt.date
             
-            # Calculate additional metrics
+            # Calculate metrics
             display_df['duration_min'] = (display_df['exit_time'] - display_df['entry_time']).dt.total_seconds() / 60
             display_df['return_pct'] = ((display_df['exit_price'] - display_df['entry_price']) / display_df['entry_price'] * 100)
             
-            # Format times for display
-            display_df['Entry Time'] = display_df['entry_time'].dt.strftime('%m/%d %H:%M')
-            display_df['Exit Time'] = display_df['exit_time'].dt.strftime('%H:%M')
+            # Group by date for visual organization
+            grouped = display_df.groupby('date')
             
-            # Rename columns for better readability
-            column_mapping = {
-                'ticker': 'Ticker',
-                'direction': 'Side',
-                'confidence': 'Quality',
-                '0dte_permission': '0DTE',
-                'entry_price': 'Entry $',
-                'exit_price': 'Exit $',
-                'pnl': 'P/L',
-                'exit_reason': 'Exit',
-                'strike': 'Strike',
-                'duration_min': 'Duration',
-                'return_pct': 'Return %'
-            }
+            # Custom CSS for professional styling
+            st.markdown("""
+                <style>
+                .trade-date-header {
+                    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    font-size: 16px;
+                    margin: 20px 0 10px 0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                .daily-summary {
+                    background: #f8fafc;
+                    border-left: 4px solid #3b82f6;
+                    padding: 10px 20px;
+                    margin: 10px 0;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                .daily-summary-positive {
+                    border-left-color: #10b981;
+                    background: #f0fdf4;
+                }
+                .daily-summary-negative {
+                    border-left-color: #ef4444;
+                    background: #fef2f2;
+                }
+                .trade-card {
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin: 15px 0;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                }
+                .trade-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 15px;
+                    border-bottom: 2px solid #f3f4f6;
+                }
+                .trade-pnl-large {
+                    font-size: 32px;
+                    font-weight: 700;
+                    line-height: 1;
+                }
+                .trade-return-large {
+                    font-size: 24px;
+                    font-weight: 600;
+                }
+                .trade-metric-row {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 15px;
+                    margin: 15px 0;
+                }
+                .trade-metric {
+                    background: #f9fafb;
+                    padding: 12px;
+                    border-radius: 6px;
+                }
+                .trade-metric-label {
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    color: #6b7280;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                }
+                .trade-metric-value {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #111827;
+                    margin-top: 4px;
+                }
+                </style>
+            """, unsafe_allow_html=True)
             
-            # Select and rename columns
-            base_cols = ['Ticker', 'Entry Time', 'Exit Time', 'Side']
+            # Display trades grouped by date
+            for date, day_trades in grouped:
+                # Date header
+                st.markdown(f"""
+                    <div class="trade-date-header">
+                        📅 {date.strftime('%A, %B %d, %Y')}
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Prepare day's trades for display
+                day_df = day_trades.copy()
+                
+                # Reorder columns: P/L first (trader priority)
+                day_df['P/L'] = day_df['pnl']
+                day_df['Return %'] = day_df['return_pct']
+                day_df['Entry Time'] = day_df['entry_time'].dt.strftime('%H:%M')
+                day_df['Exit Time'] = day_df['exit_time'].dt.strftime('%H:%M')
+                day_df['Direction'] = day_df['direction']
+                day_df['Entry $'] = day_df['entry_price']
+                day_df['Exit $'] = day_df['exit_price']
+                day_df['Exit Reason'] = day_df['exit_reason']
+                day_df['Duration'] = day_df['duration_min']
+                
+                # Select columns in trader-priority order
+                display_cols = ['P/L', 'Return %', 'Entry Time', 'Exit Time', 'Direction', 
+                               'Entry $', 'Exit $', 'Exit Reason', 'Duration']
+                
+                # Add ticker if multi-ticker
+                if 'ticker' in day_df.columns:
+                    display_cols.insert(4, 'Ticker')
+                    day_df['Ticker'] = day_df['ticker']
+                
+                final_df = day_df[display_cols].reset_index(drop=True)
+                
+                # Column configuration for professional display
+                col_config = {
+                    'P/L': st.column_config.NumberColumn(
+                        'P/L',
+                        format='$%+.2f',
+                        width='medium',
+                        help='Profit/Loss in dollars'
+                    ),
+                    'Return %': st.column_config.NumberColumn(
+                        'Return',
+                        format='%+.2f%%',
+                        width='small',
+                        help='Percentage return'
+                    ),
+                    'Entry Time': st.column_config.TextColumn('Entry', width='small'),
+                    'Exit Time': st.column_config.TextColumn('Exit', width='small'),
+                    'Direction': st.column_config.TextColumn('Side', width='small'),
+                    'Ticker': st.column_config.TextColumn('Ticker', width='small'),
+                    'Entry $': st.column_config.NumberColumn('Entry $', format='$%.2f', width='small'),
+                    'Exit $': st.column_config.NumberColumn('Exit $', format='$%.2f', width='small'),
+                    'Exit Reason': st.column_config.TextColumn('Exit', width='medium'),
+                    'Duration': st.column_config.NumberColumn('Duration (min)', format='%.0f', width='small')
+                }
+                
+                # Color styling
+                def style_pnl(val):
+                    if pd.isna(val):
+                        return ''
+                    color = '#10b981' if val > 0 else '#ef4444'
+                    return f'color: {color}; font-weight: 700; font-size: 16px'
+                
+                def style_return(val):
+                    if pd.isna(val):
+                        return ''
+                    color = '#10b981' if val > 0 else '#ef4444'
+                    return f'color: {color}; font-weight: 600'
+                
+                # Display table
+                st.dataframe(
+                    final_df.style\
+                        .map(style_pnl, subset=['P/L'])\
+                        .map(style_return, subset=['Return %']),
+                    column_config=col_config,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=min(len(day_df) * 40 + 50, 400)
+                )
+                
+                # Daily summary
+                daily_pnl = day_df['pnl'].sum()
+                daily_trades = len(day_df)
+                daily_wins = len(day_df[day_df['pnl'] > 0])
+                daily_wr = (daily_wins / daily_trades * 100) if daily_trades > 0 else 0
+                
+                summary_class = 'daily-summary-positive' if daily_pnl > 0 else 'daily-summary-negative'
+                pnl_color = '#10b981' if daily_pnl > 0 else '#ef4444'
+                
+                st.markdown(f"""
+                    <div class="daily-summary {summary_class}">
+                        <strong>Daily Summary:</strong> 
+                        {daily_trades} trade{'s' if daily_trades != 1 else ''} • 
+                        {daily_wins}W-{daily_trades - daily_wins}L ({daily_wr:.0f}% WR) • 
+                        <span style="color: {pnl_color}; font-weight: 700;">
+                            Net P/L: ${daily_pnl:+.2f}
+                        </span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Expandable trade cards
+                with st.expander("📊 View Detailed Trade Cards", expanded=False):
+                    for idx, trade in day_df.iterrows():
+                        pnl = trade['pnl']
+                        return_pct = trade['return_pct']
+                        pnl_color = '#10b981' if pnl > 0 else '#ef4444'
+                        
+                        st.markdown(f"""
+                            <div class="trade-card">
+                                <div class="trade-card-header">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: 600; color: #111827;">
+                                            {trade['direction']} {trade.get('ticker', 'SPY')}
+                                        </div>
+                                        <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">
+                                            {trade['entry_time'].strftime('%I:%M %p')} → {trade['exit_time'].strftime('%I:%M %p')} 
+                                            ({trade['duration_min']:.0f} min)
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div class="trade-pnl-large" style="color: {pnl_color};">
+                                            ${pnl:+.2f}
+                                        </div>
+                                        <div class="trade-return-large" style="color: {pnl_color};">
+                                            {return_pct:+.2f}%
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="trade-metric-row">
+                                    <div class="trade-metric">
+                                        <div class="trade-metric-label">Entry Price</div>
+                                        <div class="trade-metric-value">${trade['entry_price']:.2f}</div>
+                                    </div>
+                                    <div class="trade-metric">
+                                        <div class="trade-metric-label">Exit Price</div>
+                                        <div class="trade-metric-value">${trade['exit_price']:.2f}</div>
+                                    </div>
+                                    <div class="trade-metric">
+                                        <div class="trade-metric-label">Exit Reason</div>
+                                        <div class="trade-metric-value">{trade['exit_reason']}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="trade-metric-row">
+                                    <div class="trade-metric">
+                                        <div class="trade-metric-label">Strike</div>
+                                        <div class="trade-metric-value">${trade.get('strike', trade['entry_price']):.2f}</div>
+                                    </div>
+                                    <div class="trade-metric">
+                                        <div class="trade-metric-label">Confidence</div>
+                                        <div class="trade-metric-value">{trade.get('confidence', 'N/A')}</div>
+                                    </div>
+                                    <div class="trade-metric">
+                                        <div class="trade-metric-label">0DTE Permission</div>
+                                        <div class="trade-metric-value">{trade.get('0dte_permission', 'N/A')}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
             
-            # Add metadata columns if available
-            meta_cols = []
-            if 'confidence' in display_df.columns:
-                display_df['Quality'] = display_df['confidence']
-                meta_cols.append('Quality')
-            if '0dte_permission' in display_df.columns:
-                display_df['0DTE'] = display_df['0dte_permission']
-                meta_cols.append('0DTE')
-            if 'strike' in display_df.columns:
-                display_df['Strike'] = display_df['strike']
-                meta_cols.append('Strike')
-            
-            # Add price and performance columns
-            perf_cols = ['Entry $', 'Exit $', 'P/L', 'Return %', 'Duration', 'Exit']
-            
-            # Rename existing columns
-            for old, new in column_mapping.items():
-                if old in display_df.columns and new in perf_cols:
-                    display_df[new] = display_df[old]
-            
-            # Combine all columns
-            final_cols = base_cols + meta_cols + perf_cols
-            
-            # Handle single ticker case
-            if 'ticker' not in trades_df.columns:
-                final_cols.remove('Ticker')
-            
-            # Filter to only existing columns
-            final_cols = [col for col in final_cols if col in display_df.columns]
-            display_df = display_df[final_cols]
-            
-            # Apply styling with column configuration
-            column_config = {
-                'Ticker': st.column_config.TextColumn('Ticker', width='small'),
-                'Entry Time': st.column_config.TextColumn('Entry Time', width='medium'),
-                'Exit Time': st.column_config.TextColumn('Exit', width='small'),
-                'Side': st.column_config.TextColumn('Side', width='small'),
-                'Quality': st.column_config.TextColumn('Quality', width='small'),
-                '0DTE': st.column_config.TextColumn('0DTE', width='small'),
-                'Strike': st.column_config.NumberColumn('Strike', format='$%.2f', width='small'),
-                'Entry $': st.column_config.NumberColumn('Entry', format='$%.2f', width='small'),
-                'Exit $': st.column_config.NumberColumn('Exit', format='$%.2f', width='small'),
-                'P/L': st.column_config.NumberColumn('P/L', format='$%+.2f', width='small'),
-                'Return %': st.column_config.NumberColumn('Return', format='%+.2f%%', width='small'),
-                'Duration': st.column_config.NumberColumn('Duration (min)', format='%.0f', width='small'),
-                'Exit': st.column_config.TextColumn('Exit Reason', width='medium')
-            }
-            
-            # Color styling function
-            def color_pnl(val):
-                if pd.isna(val):
-                    return ''
-                color = '#00FF00' if val > 0 else '#FF4444'
-                return f'color: {color}; font-weight: bold'
-            
-            # Display with enhanced styling
-            st.dataframe(
-                display_df.style.map(color_pnl, subset=['P/L', 'Return %']),
-                column_config=column_config,
-                use_container_width=True,
-                height=500
-            )
         else:
             st.info("No trades generated in this period.")
 
